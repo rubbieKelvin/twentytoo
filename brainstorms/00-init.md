@@ -273,7 +273,89 @@ Ships as a first-class built-in module, not left to each deployment to rebuild:
 
 ---
 
-## 7. Extensibility model
+## 7. Feature flagging (built-in)
+
+Feature flagging is a first-class built-in module, not a bolt-on. Internal tools are **the natural home for operational toggles** — support wants to enable a feature for one user to debug, product wants to dark-launch something to internal staff first, ops wants a kill switch for a misbehaving integration. The dashboard is where these decisions are made and enforced.
+
+### 7.1 Flag model
+
+- **Flag** — a named boolean toggle with a targeting strategy and a default value.
+- **Targeting** — who the flag is active for: everyone, specific users, specific roles, a percentage rollout, or a custom predicate.
+- **Override** — a per-user manual override that takes precedence over the targeting strategy.
+
+```
+flag "new_onboarding_flow" {
+  label: "New onboarding flow"
+  description: "Replaces the legacy 3-step wizard with the unified single-page flow"
+  default: false                    # off for everyone unless targeted
+  targeting: {
+    strategy: percentage
+    value: 10                       # 10% of users
+  }
+  overrides: {
+    user_ids: [42, 107]             # always on for these users
+  }
+}
+
+flag "experimental_search_v2" {
+  label: "Search v2"
+  default: false
+  targeting: {
+    strategy: roles
+    roles: [admin, support]         # internal staff only
+  }
+}
+```
+
+### 7.2 Targeting strategies
+
+| Strategy      | Behavior                                                      |
+| ------------- | ------------------------------------------------------------- |
+| `everyone`    | On for all users (effectively a global config toggle)         |
+| `percentage`  | Deterministic hash-based rollout (consistent per user)        |
+| `roles`       | On for users with any of the listed roles                     |
+| `users`       | On for explicitly listed user IDs                             |
+| `custom`      | Delegates to a user-provided predicate function               |
+
+### 7.3 Flag resolution
+
+- Flags resolve **once per request** and are cached for the request lifetime — no N+1 evaluation on repeated checks.
+- Resolution is **deterministic**: a given user consistently gets the same result for a given flag configuration (modulo targeting changes). Percentage rollouts use a hash of `(flag_id, user_id)` so a user doesn't flip-flop between page loads.
+- Flags are exposed to server-side templates and, when JS is present, a minimal client-side API so progressive enhancement can check flag state without a round-trip.
+
+### 7.4 The flags resource
+
+Flag **definitions** ship as code (the source of truth for what flags exist and their defaults). The framework also provides a built-in `Feature Flags` resource for **runtime management**:
+
+- **List view:** all flags with their current targeting strategy, rollout percentage, and status.
+- **Edit view:** change targeting strategy, percentage, role lists, and per-user overrides — **without a redeploy**. This is the operational surface ops and support interact with.
+- **Audit log:** every targeting change is logged (who changed what flag, when, old state → new state).
+- **RBAC:** gated behind `flags.manage` for editing; `flags.view` for read-only access to the flag list.
+
+### 7.5 Integration points
+
+Flags integrate declaratively with every core primitive. Add `flag: "flag_name"` to any definition and the framework handles the rest:
+
+| Primitive  | Integration                                                                           |
+| ---------- | ------------------------------------------------------------------------------------- |
+| **Resource** | `flag: "new_onboarding"` on a resource definition — hides from nav and routes when off |
+| **Field**    | `flag: "beta_fields"` on a field — field doesn't render when flag is off              |
+| **Action**   | `flag: "migration_v2"` on an action — button doesn't appear when flag is off          |
+| **Metric**   | `flag: "new_dashboard"` on a metric — excluded from the dashboard when off            |
+| **Page**     | `flag: "review_queue_v2"` on a page — route returns 404 when flag is off              |
+| **Nav item** | `flag: "experimental"` on a nav entry — hidden when flag is off                       |
+
+The rule is the same as RBAC: **when a flag is off for the current user, the gated thing doesn't exist.** Not disabled, not grayed out — absent. This prevents information leaks and keeps the UI clean.
+
+### 7.6 Use cases
+
+- **Dark launches:** ship a feature to internal staff (`targeting: roles: [admin, support]`) before exposing it to customers.
+- **Kill switches:** wrap a misbehaving integration behind a flag; turn it off instantly from the dashboard without a deploy.
+- **Gradual rollouts:** start at 5%, monitor, increase to 50%, then 100% — all from the dashboard.
+- **Support debugging:** toggle a feature on for one specific user to reproduce an issue, then off again.
+- **Environment gating:** a flag that's on in staging but off in production, controlled by the deployment environment rather than targeting.
+
+## 8. Extensibility model
 
 - **Modules** bundle a set of resources + metrics + pages + nav entries + (if applicable) migrations, and register into the host app at startup. A company's domain-specific work — "doctor approval," "store management" — is a module, not a fork of core.
 - **Core is a library**, not a template you copy-paste and diverge from. The consuming app is a thin composition layer: register modules, set theme tokens, done.
@@ -283,7 +365,7 @@ Ships as a first-class built-in module, not left to each deployment to rebuild:
 
 ---
 
-## 8. Coverage checklist — the "80% of internal tools" bar
+## 9. Coverage checklist — the "80% of internal tools" bar
 
 The framework should need **zero custom page/handler code** for:
 
@@ -300,12 +382,13 @@ The framework should need **zero custom page/handler code** for:
 - [ ] User invite, deactivation, and role management
 - [ ] In-app and/or email notifications on key events
 - [ ] Global search across resources
+- [ ] Feature flag management (runtime toggle without redeploy, targeting by role/user/percentage)
 
 Custom pages are the intentional, expected escape hatch for the remaining ~20% — e.g. a multi-step review queue with its own state machine, a map view, or a domain-specific report builder.
 
 ---
 
-## 9. Architecture layers (stack-agnostic)
+## 10. Architecture layers (stack-agnostic)
 
 | Layer               | Responsibility                                                        | Portability requirement                                                    |
 | ------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -315,10 +398,11 @@ Custom pages are the intentional, expected escape hatch for the remaining ~20% �
 | **Auth/RBAC**       | pluggable auth provider + policy engine                               | Policy engine is pure logic; auth provider is swappable                    |
 | **Job/queue**       | backing for async actions and exports                                 | Pluggable adapter (in-process for small deployments, real queue for scale) |
 | **Notifications**   | in-app / email / webhook dispatch on events                           | Pluggable adapter                                                          |
+| **Feature flags**   | flag evaluation, targeting strategies, runtime overrides              | Flag resolution is pure logic; definition store is swappable              |
 
 ---
 
-## 10. Reference prior art
+## 11. Reference prior art
 
 Django admin, Rails (ActiveAdmin/Avo), Laravel (Nova/Filament), Refine.dev, and Retool all solve pieces of this. Here's how Twentytoo differs:
 
@@ -331,14 +415,14 @@ Django admin, Rails (ActiveAdmin/Avo), Laravel (Nova/Filament), Refine.dev, and 
 | Retool          | Drag-and-drop      | Yes          | Via UI config   | N/A (platform)       |
 | **Twentytoo**   | Declarative, SSR   | **No**       | **First-class** | **Yes** (by design)  |
 
-Twentytoo's differentiators: **SSR-first** (no required JS build/runtime), **framework-agnostic core spec** rather than tied to one language's ecosystem, and **row-level RBAC as a first-class primitive** rather than an add-on.
+Twentytoo's differentiators: **SSR-first** (no required JS build/runtime), **framework-agnostic core spec** rather than tied to one language's ecosystem, **row-level RBAC as a first-class primitive** rather than an add-on, and **built-in feature flagging** integrated with every primitive from day one.
 
 ---
 
-## 11. MVP phasing
+## 12. MVP phasing
 
 ### Phase 1 — Foundation
-Resource engine (CRUD, fields, list/detail/form generation), role+permission RBAC (no row-level yet), built-in user management, audit log.
+Resource engine (CRUD, fields, list/detail/form generation), role+permission RBAC (no row-level yet), built-in user management, feature flagging, audit log.
 
 **Deliverable:** You can define a resource, get generated CRUD views with role-gated access, manage users, and see who changed what.
 
@@ -359,7 +443,7 @@ Module packaging/distribution, theming system, global search, real-time updates 
 
 ---
 
-## 12. Open questions to resolve before implementation
+## 13. Open questions to resolve before implementation
 
 - **Reference stack:** which language/framework does the first implementation target? Given the current repo context: **Rust / Axum / Tera** (or Askama) is the natural first target, with this spec used to keep the design portable. The constraint: Rust's type system and compile-time guarantees are an asset for a framework that wants to catch misconfiguration at build time, but may slow the iteration speed of the reference implementation relative to a dynamic language.
 - **Multi-tenancy:** core primitive from day one, or a Phase-3+ module? Leaning toward: design the policy model to accommodate it from the start (the `actor.team_id == record.team_id` pattern should work without restructuring), but defer the Team/Org management UI and invitation flow to Phase 3.
@@ -371,7 +455,7 @@ Module packaging/distribution, theming system, global search, real-time updates 
 
 ---
 
-## 13. Worked examples (grounding the spec)
+## 14. Worked examples (grounding the spec)
 
 ### MobiHealth (telemedicine platform)
 
@@ -396,7 +480,7 @@ Module packaging/distribution, theming system, global search, real-time updates 
 
 ---
 
-## 14. Immediate next steps
+## 15. Immediate next steps
 
 1. **Pick the reference stack** and scaffold the project.
 2. **Implement the Resource engine** end-to-end for one resource type (probably `users` since it's built-in anyway) — list view, detail view, create/edit forms, all server-rendered.
