@@ -27,25 +27,20 @@
 
 pub use twentytoo_core::*;
 
-pub mod app;
-pub mod error;
-pub mod flags;
-pub mod handlers;
-pub mod payload;
-pub mod registry;
-pub mod state;
-pub mod templates;
-pub mod util;
-pub mod view;
+pub mod application;
+pub mod container;
+pub mod infrastructure;
+pub mod presentation;
+pub mod shared;
 
-pub use crate::app::{ErasedResource, Twentytoo, TwentytooBuilder};
-pub use crate::error::{AppError, BuildError};
-pub use crate::state::AppState;
+pub use crate::container::{ErasedResource, Twentytoo, TwentytooBuilder};
+pub use crate::presentation::state::AppState;
+pub use crate::shared::errors::{AppError, BuildError};
 
 /// One-stop import for the common consumer surface.
 pub mod prelude {
-    pub use crate::app::{ErasedResource, Twentytoo, TwentytooBuilder};
-    pub use crate::error::{AppError, BuildError};
-    pub use crate::state::AppState;
+    pub use crate::container::{ErasedResource, Twentytoo, TwentytooBuilder};
+    pub use crate::presentation::state::AppState;
+    pub use crate::shared::errors::{AppError, BuildError};
     pub use twentytoo_core::prelude::*;
 }

@@ -4,7 +4,7 @@ use axum::extract::State;
 use axum::middleware::Next;
 use axum::response::Response;
 
-use crate::state::AppState;
+use crate::presentation::state::AppState;
 
 /// Injects the configured default actor into every request.
 ///

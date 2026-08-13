@@ -5,8 +5,8 @@ use axum::response::{Html, IntoResponse, Response};
 use minijinja::context;
 use twentytoo_core::{Actor, Resource};
 
-use crate::error::AppError;
-use crate::view::{ResourceView, materialize_computed};
+use crate::application::dto::{ResourceView, materialize_computed};
+use crate::shared::errors::AppError;
 
 use super::ResourceState;
 use super::helpers::gate_resource;

@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use twentytoo_core::Actor;
 
-use crate::flags::FlagService;
-use crate::registry::ResourceRegistry;
-use crate::templates::TemplateEngine;
+use crate::infrastructure::flags::FlagService;
+use crate::infrastructure::templates::TemplateEngine;
+use crate::presentation::registry::ResourceRegistry;
 
 /// Everything handlers share: resources, templates, flags, identity.
 #[derive(Clone)]

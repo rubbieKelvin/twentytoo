@@ -5,8 +5,8 @@ use axum::response::{Html, IntoResponse, Response};
 use minijinja::context;
 use twentytoo_core::Actor;
 
-use crate::error::AppError;
-use crate::state::AppState;
+use crate::presentation::state::AppState;
+use crate::shared::errors::AppError;
 
 /// GET / — the dashboard home.
 pub async fn home_handler(

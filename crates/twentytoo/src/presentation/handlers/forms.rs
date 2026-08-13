@@ -6,9 +6,9 @@ use minijinja::context;
 use serde_json::Value;
 use twentytoo_core::{Actor, Resource};
 
-use crate::error::AppError;
-use crate::payload;
-use crate::view::ResourceView;
+use crate::application::dto::ResourceView;
+use crate::application::payload;
+use crate::shared::errors::AppError;
 
 use super::ResourceState;
 use super::helpers::gate_resource;

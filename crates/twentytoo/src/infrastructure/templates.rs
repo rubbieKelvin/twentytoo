@@ -15,8 +15,8 @@ use minijinja::{AutoEscape, Environment, State, Value};
 use serde::Deserialize;
 use twentytoo_core::Actor;
 
-use crate::util::{escape_html, format_money};
-use crate::view::{FieldView, FilterView, KindView};
+use crate::application::dto::{FieldView, FilterView, KindView};
+use crate::shared::utils::{escape_html, format_money};
 
 /// Framework templates referenced by handlers — the boot check (`05` §12)
 /// verifies each of these resolves after the env build.
@@ -370,8 +370,8 @@ mod tests {
     /// here, before any request.
     #[test]
     fn boot_templates_resolve_and_render() {
-        use crate::registry::NavItem;
-        use crate::view::{PagerView, ResourceView};
+        use crate::application::dto::{PagerView, ResourceView};
+        use crate::presentation::registry::NavItem;
         use std::collections::HashMap;
         use std::sync::Arc;
         use twentytoo_core::{InMemoryAdapter, Policy, SortField, field};

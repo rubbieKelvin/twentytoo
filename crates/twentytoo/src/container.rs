@@ -1,4 +1,4 @@
-//! The framework entry point: builder → axum router (`01` §4.1).
+//! The composition root / service container: builder → axum router (`01` §4.1).
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -9,12 +9,13 @@ use axum::middleware;
 use axum::routing::get;
 use twentytoo_core::{Actor, DataError, Resource};
 
-use crate::error::BuildError;
-use crate::flags::FlagService;
-use crate::handlers::{ResourceState, actor_layer, home_handler, not_found, resource_routes};
-use crate::registry::{DynResourceMeta, ResourceMeta, ResourceRegistry};
-use crate::state::AppState;
-use crate::templates::TemplateEngine;
+use crate::infrastructure::flags::FlagService;
+use crate::infrastructure::templates::TemplateEngine;
+use crate::presentation::handlers::{ResourceState, home_handler, not_found, resource_routes};
+use crate::presentation::middleware::actor_layer;
+use crate::presentation::registry::{DynResourceMeta, ResourceMeta, ResourceRegistry};
+use crate::presentation::state::AppState;
+use crate::shared::errors::BuildError;
 
 /// The built framework instance; hand [`Twentytoo::into_make_service`] to
 /// axum, or [`Twentytoo::into_router`] to nest inside a larger app.

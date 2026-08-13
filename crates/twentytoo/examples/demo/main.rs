@@ -32,8 +32,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .await?;
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
-    println!("twentytoo demo → http://127.0.0.1:3000");
+    let addr = std::env::var("ADDR").unwrap_or_else(|_| return "127.0.0.1:3000".to_string());
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    println!("twentytoo demo → http://{addr}");
     axum::serve(listener, app.into_make_service()).await?;
     return Ok(());
 }

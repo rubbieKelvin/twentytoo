@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use serde_json::{Map, Value};
-use twentytoo_core::{Field, FieldKind};
+use twentytoo_core::{Field, FieldKind, Resource};
 
 /// Field-level validation errors, keyed by field name.
 pub type FieldErrors = HashMap<String, String>;
@@ -164,6 +164,20 @@ pub fn form_values(form: &HashMap<String, Vec<String>>) -> Value {
         })
         .collect();
     return Value::Object(obj);
+}
+
+/// Entity-level validation: JSON → typed entity → validators → back.
+pub fn validate_entity<R: Resource>(
+    fields: &[Field<R::Entity>],
+    payload: &Value,
+) -> Option<String> {
+    let entity: R::Entity = match serde_json::from_value(payload.clone()) {
+        Ok(e) => e,
+        Err(e) => {
+            return Some(format!("payload does not match the entity: {e}"));
+        }
+    };
+    return run_validators(fields, &entity);
 }
 
 #[cfg(test)]

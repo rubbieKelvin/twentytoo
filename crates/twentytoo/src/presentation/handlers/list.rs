@@ -10,10 +10,11 @@ use twentytoo_core::{
     SearchSpec, SortDir, SortField,
 };
 
-use crate::error::AppError;
-use crate::view::ResourceView;
+use crate::application::dto::ResourceView;
+use crate::application::query::build_filter;
+use crate::shared::errors::AppError;
 
-use super::helpers::{build_filter, build_pager, gate_resource};
+use super::helpers::{build_pager, gate_resource};
 use super::{ListParams, ResourceState};
 
 /// GET /{key} — one page of rows.

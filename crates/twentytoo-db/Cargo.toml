@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
+description = "PostgreSQL layer for Twentytoo: embedded schema and typed access for the framework-owned tables."
 
 [dependencies]
 twentytoo-core = { path = "../twentytoo-core" }

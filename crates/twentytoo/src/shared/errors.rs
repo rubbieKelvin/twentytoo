@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use twentytoo_core::DataError;
 
-use crate::util::escape_html;
+use crate::shared::utils::escape_html;
 
 /// A request-level failure, rendered as an HTML error response.
 ///
