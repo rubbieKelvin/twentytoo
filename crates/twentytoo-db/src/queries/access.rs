@@ -5,38 +5,15 @@
 //! the roles of every group they belong to. [`Db::load_actor`] is the
 //! centerpiece: it expands that union into the [`Actor`] the request
 //! pipeline sees, matching the core contract where `Actor.permissions` are
-//! "expanded from roles".
+//! "expanded from roles". The row shapes live in [`crate::entities`].
 
 use sqlx::FromRow;
 use twentytoo_core::Actor;
 use uuid::Uuid;
 
 use crate::Db;
+use crate::entities::{Permission, Role};
 use crate::error::DbError;
-
-/// One row of `permissions`.
-#[derive(Clone, Debug, FromRow)]
-pub struct Permission {
-    /// Stable id.
-    pub id: Uuid,
-    /// The `resource.action` code, e.g. `"stores.view"`.
-    pub code: String,
-    /// Human explanation of what the permission allows.
-    pub description: String,
-}
-
-/// One row of `roles`.
-#[derive(Clone, Debug, FromRow)]
-pub struct Role {
-    /// Stable id.
-    pub id: Uuid,
-    /// Stable key, e.g. `"admin"`.
-    pub key: String,
-    /// Display name.
-    pub name: String,
-    /// Human explanation of what the role bundles.
-    pub description: String,
-}
 
 /// Whether `code` is a valid permission code: two non-empty
 /// `[a-z0-9_*]`-only segments joined by `.` — exactly the shape
@@ -255,7 +232,7 @@ impl Db {
         user_id: &Uuid,
         group_id: Option<&Uuid>,
     ) -> Result<Option<Actor>, DbError> {
-        let user = sqlx::query_as::<_, crate::users::User>(
+        let user = sqlx::query_as::<_, crate::entities::User>(
             "SELECT id, email, name, password_hash, status, created_at, updated_at
              FROM users WHERE id = $1",
         )

@@ -36,7 +36,7 @@ HTTP layer (`crates/twentytoo/src/`): `app.rs` (builder + boot validation), `han
 |---|---|
 | `crates/twentytoo-core/src/` | The contract: `adapter.rs` (DataAdapter/TxAdapter), `resource.rs`, `field.rs` (+ `field!`/`fields!` macros), `query.rs`, `write.rs`, `actor.rs`, `policy.rs`, `action.rs`, `capabilities.rs`, `aggregation.rs`, `audit.rs`, `error.rs`, `in_memory.rs` |
 | `crates/twentytoo/src/` | The HTTP layer: `app.rs`, `handlers/` (list, detail, forms, mutations, home, middleware, helpers), `templates.rs`, `view.rs`, `payload.rs`, `error.rs`, `flags.rs`, `registry.rs`, `state.rs`, `util.rs` |
-| `crates/twentytoo-db/` | The DB layer: `migrations/` (users, groups, sessions, roles, permissions, group assignments, audit log), `db.rs` (`Db` pool + `MIGRATOR`), `users.rs`, `groups.rs`, `sessions.rs`, `access.rs` (`load_actor`), `audit.rs`, `error.rs` (`DbError`), `tests/db.rs` (live-Postgres integration) |
+| `crates/twentytoo-db/` | The DB layer: `migrations/` (users, groups, sessions, roles, permissions, group assignments, audit log), `entities/` (row shapes: user, group, session, permission, role, audit), `queries/` (typed access: `users`, `groups`, `sessions`, `access` with `load_actor`, `audit`), `db.rs` (`Db` pool + `MIGRATOR`), `error.rs` (`DbError`), `tests/db.rs` (live-Postgres integration) |
 | `crates/twentytoo/templates/` | Built-in `.j2` templates (embedded at build time) |
 | `crates/twentytoo/examples/demo/` | Demo app: users + stores on `InMemoryAdapter` |
 | `brainstorms/` | Design docs 00–05; source of truth for intent and decisions |

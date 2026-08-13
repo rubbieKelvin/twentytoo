@@ -1,10 +1,11 @@
-//! Audit log: the append-only trail of mutations and actions (`00-init`
-//! §5.5).
+//! Audit queries: the append-only trail of mutations and actions
+//! (`00-init` §5.5).
 //!
 //! Every entry records the actor (id + email snapshots), the affected
 //! resource + record, the before/after state, and the request IP. The
 //! access layer only inserts and selects — entries are immutable; retention
-//! is a storage-layer concern, not an application one.
+//! is a storage-layer concern, not an application one. The write shape
+//! lives in [`crate::entities::audit`].
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
@@ -13,28 +14,8 @@ use twentytoo_core::{AuditAction, AuditEntry};
 use uuid::Uuid;
 
 use crate::Db;
+use crate::entities::NewAuditEntry;
 use crate::error::DbError;
-
-/// The fields needed to write one audit entry.
-#[derive(Clone, Debug)]
-pub struct NewAuditEntry {
-    /// Acting user id (snapshot — survives user deletion).
-    pub actor_id: String,
-    /// Acting user email (snapshot).
-    pub actor_email: String,
-    /// What happened.
-    pub action: AuditAction,
-    /// Resource key (`"stores"`, `"orders"`, …).
-    pub resource_key: String,
-    /// The affected record's id.
-    pub record_id: String,
-    /// Record state before the mutation.
-    pub before: Option<Value>,
-    /// Record state after the mutation.
-    pub after: Option<Value>,
-    /// Client IP, when known.
-    pub ip: Option<String>,
-}
 
 /// One stored row, before the `action` text is mapped to [`AuditAction`].
 #[derive(FromRow)]

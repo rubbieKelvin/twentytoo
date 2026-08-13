@@ -13,9 +13,7 @@ use chrono::{Duration, Utc};
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use twentytoo_core::AuditAction;
-use twentytoo_db::audit::NewAuditEntry;
-use twentytoo_db::sessions::SessionInfo;
-use twentytoo_db::users::UserStatus;
+use twentytoo_db::entities::{NewAuditEntry, SessionInfo, UserStatus};
 use twentytoo_db::{Db, DbError};
 use uuid::Uuid;
 

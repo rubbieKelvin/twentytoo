@@ -3,7 +3,7 @@
 //! Owns the schema (`migrations/`, embedded via [`MIGRATOR`]) and a typed
 //! access layer for the framework-owned tables: users and sessions (auth),
 //! groups and membership (groupings), roles and permissions (RBAC, see
-//! [`crate::access::load_actor`]), and the append-only audit log.
+//! [`crate::queries::access::load_actor`]), and the append-only audit log.
 //!
 //! Queries are runtime-bound (`sqlx::query_as`), so the crate compiles and
 //! its unit tests run without a live database; integration tests live in
@@ -15,13 +15,10 @@
 
 #![warn(missing_docs)]
 
-pub mod access;
-pub mod audit;
 pub mod db;
+pub mod entities;
 pub mod error;
-pub mod groups;
-pub mod sessions;
-pub mod users;
+pub mod queries;
 
 pub use crate::db::{Db, MIGRATOR};
 pub use crate::error::DbError;

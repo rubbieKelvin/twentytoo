@@ -1,28 +1,15 @@
-//! Groups: user-created groupings (`00-init` §5.1).
+//! Group queries: the typed access layer over `groups` + `group_members`.
 //!
 //! Membership is a pure many-to-many — a user belongs to any number of
-//! groups. Roles are granted to groups in [`crate::access`] (`group_roles`),
-//! and every member inherits them.
+//! groups. Roles are granted to groups in [`crate::queries::access`] (`group_roles`),
+//! and every member inherits them. The row shape lives in
+//! [`crate::entities::group`].
 
-use chrono::{DateTime, Utc};
-use sqlx::FromRow;
 use uuid::Uuid;
 
 use crate::Db;
+use crate::entities::{Group, User};
 use crate::error::DbError;
-
-/// One row of `groups`.
-#[derive(Clone, Debug, FromRow)]
-pub struct Group {
-    /// Stable id.
-    pub id: Uuid,
-    /// Display name.
-    pub name: String,
-    /// Unique URL- and reference-safe key.
-    pub slug: String,
-    /// Row creation time.
-    pub created_at: DateTime<Utc>,
-}
 
 impl Db {
     /// Create a group. Duplicate slug → [`DbError::Conflict`].
@@ -88,11 +75,8 @@ impl Db {
     }
 
     /// The members of `group_id`, ordered by name.
-    pub async fn list_group_members(
-        &self,
-        group_id: &Uuid,
-    ) -> Result<Vec<crate::users::User>, DbError> {
-        let rows = sqlx::query_as::<_, crate::users::User>(
+    pub async fn list_group_members(&self, group_id: &Uuid) -> Result<Vec<User>, DbError> {
+        let rows = sqlx::query_as::<_, User>(
             "SELECT u.id, u.email, u.name, u.password_hash, u.status, u.created_at, u.updated_at
              FROM users u
              JOIN group_members m ON m.user_id = u.id
