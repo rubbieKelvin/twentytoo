@@ -9,7 +9,7 @@ description = "HTTP layer for the Twentytoo dashboard framework: axum CRUD handl
 build = "build.rs"
 
 [dependencies]
-twentytoo-core = { path = "../twentytoo-core" }
+twentytoo-core = { path = "../twentytoo-core", version = "0.1.0" }
 axum = "0.8"
 minijinja = "2"
 minijinja-embed = "1"

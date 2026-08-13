@@ -15,8 +15,10 @@ use users::{User, UserResource, seed_users};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let users = Arc::new(InMemoryAdapter::<User>::new());
-    seed_users(&users);
     let stores = Arc::new(InMemoryAdapter::<Store>::new());
+
+    // seed
+    seed_users(&users);
     seed_stores(&stores);
 
     let app = twentytoo::Twentytoo::builder()
@@ -34,7 +36,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = std::env::var("ADDR").unwrap_or_else(|_| return "127.0.0.1:3000".to_string());
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    println!("twentytoo demo → http://{addr}");
+
+    println!("twentytoo demo -> http://{addr}");
     axum::serve(listener, app.into_make_service()).await?;
+
     return Ok(());
 }

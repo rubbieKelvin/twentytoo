@@ -26,7 +26,7 @@ db-up:
 
 # Run the db-crate integration tests against the Docker Postgres.
 db-test:
-    DATABASE_URL=postgres://twentytoo:twentytoo@localhost:5432/twentytoo cargo test -p twentytoo-db
+    DATABASE_URL=postgres://twentytoo:twentytoo@localhost:5433/twentytoo cargo test -p twentytoo-db
 
 # Run the whole stack (app + Postgres) in Docker.
 up:
