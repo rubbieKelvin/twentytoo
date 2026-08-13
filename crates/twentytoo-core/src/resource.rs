@@ -19,13 +19,13 @@ use crate::query::SortField;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Relationship {
     /// Tab key (e.g. `"customers"`).
-    pub key: &'static str,
+    pub key: String,
     /// Tab label (e.g. `"Customers"`).
-    pub label: &'static str,
+    pub label: String,
     /// Related resource's key (e.g. `"customers"`).
-    pub resource_key: &'static str,
+    pub resource_key: String,
     /// Back-reference field on the related entity (e.g. `"store_id"`).
-    pub foreign_key: &'static str,
+    pub foreign_key: String,
 }
 
 /// One resource of the framework: entity, fields, actions, policy, adapter.
