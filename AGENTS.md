@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Twentytoo is an internal-tools dashboard framework: teams declare resources, fields, actions, metrics, pages, and policies instead of writing CRUD code. The design intent lives in `brainstorms/00-init.md` through `brainstorms/05-template-engine.md` (numbered decision records; 05 is the latest — Rust is the confirmed reference language, MiniJinja for templating).
+Twentytoo is an internal-tools dashboard framework: teams declare resources, fields, actions, metrics, pages, and policies instead of writing CRUD code. The design intent lives in `brainstorms/00-init.md` through `brainstorms/06-astro-web-ui.md` (numbered records; 05 is the latest decision — Rust is the confirmed reference language, MiniJinja for templating; 06 is a decision-pending brainstorm on Astro for the web UI).
 
 The workspace ships the **core contract** (traits + the `InMemoryAdapter` reference implementation) and the **HTTP layer**: generic CRUD handlers over axum, a MiniJinja template engine with framework functions, the built-in `.j2` templates, and a builder that assembles the router with boot-time validation. Auth/sessions, audit logging, the SQLx adapter, actions, metrics, and the module system are the deferred slices ("arrive in later slices" — `crates/twentytoo/src/lib.rs`).
 
