@@ -14,27 +14,27 @@ use crate::actor::Actor;
 pub trait Policy<E>: Send + Sync {
     /// May the actor see *any* record of this resource (list views)?
     fn can_view_any(&self, _actor: &Actor) -> bool {
-        false
+        return false;
     }
 
     /// May the actor see this specific record?
     fn can_view(&self, actor: &Actor, _record: &E) -> bool {
-        self.can_view_any(actor)
+        return self.can_view_any(actor);
     }
 
     /// May the actor create records?
     fn can_create(&self, _actor: &Actor) -> bool {
-        false
+        return false;
     }
 
     /// May the actor update this record?
     fn can_update(&self, _actor: &Actor, _record: &E) -> bool {
-        false
+        return false;
     }
 
     /// May the actor delete this record?
     fn can_delete(&self, _actor: &Actor, _record: &E) -> bool {
-        false
+        return false;
     }
 }
 
@@ -43,7 +43,7 @@ pub struct DenyAll;
 
 impl<E> Policy<E> for DenyAll {
     fn can_view_any(&self, _actor: &Actor) -> bool {
-        false
+        return false;
     }
 }
 
@@ -52,13 +52,13 @@ mod tests {
     use super::*;
 
     fn actor() -> Actor {
-        Actor {
+        return Actor {
             id: "u1".into(),
             email: "u1@example.com".into(),
             roles: vec![],
             permissions: vec![],
             team_id: None,
-        }
+        };
     }
 
     struct Row;
@@ -67,7 +67,7 @@ mod tests {
 
     impl<E> Policy<E> for ViewAny {
         fn can_view_any(&self, _actor: &Actor) -> bool {
-            true
+            return true;
         }
     }
 

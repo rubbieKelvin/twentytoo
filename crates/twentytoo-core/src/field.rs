@@ -115,7 +115,7 @@ pub struct Field<E> {
 // PartialEq`.
 impl<E> PartialEq for Field<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
+        return self.name == other.name
             && self.label == other.label
             && self.kind == other.kind
             && self.show_in_list == other.show_in_list
@@ -126,7 +126,7 @@ impl<E> PartialEq for Field<E> {
             && self.searchable == other.searchable
             && self.visible_to == other.visible_to
             && self.editable_by == other.editable_by
-            && self.flag == other.flag
+            && self.flag == other.flag;
     }
 }
 
@@ -301,11 +301,11 @@ mod tests {
 
     /// Project `.kind`, pinning `E` (the macro leaves it unconstrained).
     fn kind(f: Field<serde_json::Value>) -> FieldKind {
-        f.kind
+        return f.kind;
     }
 
     fn render_name(v: &serde_json::Value) -> String {
-        format!("name={}", v["name"].as_str().unwrap_or_default())
+        return format!("name={}", v["name"].as_str().unwrap_or_default());
     }
 
     #[test]

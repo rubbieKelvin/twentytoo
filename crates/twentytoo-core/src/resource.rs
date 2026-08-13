@@ -44,7 +44,7 @@ pub trait Resource: Send + Sync + 'static {
 
     /// Icon name for the nav (default: `"cube"`).
     fn icon(&self) -> &'static str {
-        "cube"
+        return "cube";
     }
 
     /// All fields of the entity, in definition order.
@@ -55,22 +55,22 @@ pub trait Resource: Send + Sync + 'static {
 
     /// Default list sort.
     fn default_sort(&self) -> Vec<SortField> {
-        vec![SortField::desc("created_at")]
+        return vec![SortField::desc("created_at")];
     }
 
     /// Fields searched by the search box (names from `fields()`).
     fn search_fields(&self) -> Vec<&'static str> {
-        Vec::new()
+        return Vec::new();
     }
 
     /// Tabs to related resources.
     fn relationships(&self) -> Vec<Relationship> {
-        Vec::new()
+        return Vec::new();
     }
 
     /// Custom actions available on this resource.
     fn actions(&self) -> Vec<Box<dyn Action<Self::Entity>>> {
-        Vec::new()
+        return Vec::new();
     }
 
     /// Row-level access policy.
@@ -78,7 +78,7 @@ pub trait Resource: Send + Sync + 'static {
 
     /// Feature flag gating this resource.
     fn flag(&self) -> Option<&'static str> {
-        None
+        return None;
     }
 
     /// The data source, built in `Module::init` where pools and clients live.
@@ -106,35 +106,35 @@ mod tests {
         type Entity = Store;
 
         fn key(&self) -> &'static str {
-            "stores"
+            return "stores";
         }
 
         fn label(&self) -> &'static str {
-            "Stores"
+            return "Stores";
         }
 
         fn fields(&self) -> Vec<Field<Self::Entity>> {
-            fields![
+            return fields![
                 field!("id", "Id", Text, list: true),
                 field!("name", "Name", Text, list: true, detail: true, form: true, required: true),
                 field!("status", "Status", Badge { options: &[("active", "Active"), ("closed", "Closed")] }, list: true),
-            ]
+            ];
         }
 
         fn list_columns(&self) -> Vec<&'static str> {
-            vec!["id", "name", "status"]
+            return vec!["id", "name", "status"];
         }
 
         fn default_sort(&self) -> Vec<SortField> {
-            vec![SortField::desc("created_at")]
+            return vec![SortField::desc("created_at")];
         }
 
         fn policy(&self) -> &dyn Policy<Self::Entity> {
-            &DenyAll
+            return &DenyAll;
         }
 
         fn adapter(&self) -> Arc<dyn DataAdapter<Self::Entity>> {
-            self.adapter.clone()
+            return self.adapter.clone();
         }
     }
 

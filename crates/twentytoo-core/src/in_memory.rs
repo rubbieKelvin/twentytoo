@@ -52,21 +52,22 @@ pub struct InMemoryTx<E> {
 impl<E: Serialize + DeserializeOwned + Send + Sync + 'static> InMemoryAdapter<E> {
     /// An empty adapter.
     pub fn new() -> Self {
-        Self {
+        return Self {
             store: Arc::new(RwLock::new(HashMap::new())),
             _marker: PhantomData,
-        }
+        };
     }
 
     /// Seed one entity by id. `Conflict` if the id exists.
     pub fn insert(&self, id: String, entity: E) -> Result<(), DataError> {
-        let value = serde_json::to_value(entity).map_err(|e| DataError::Internal(Box::new(e)))?;
+        let value =
+            serde_json::to_value(entity).map_err(|e| return DataError::Internal(Box::new(e)))?;
         let mut store = self.store.write();
         if store.contains_key(&id) {
             return Err(DataError::Conflict);
         }
         store.insert(id, value);
-        Ok(())
+        return Ok(());
     }
 
     /// All rows as JSON values, in id order (deterministic tie-break for
@@ -74,8 +75,8 @@ impl<E: Serialize + DeserializeOwned + Send + Sync + 'static> InMemoryAdapter<E>
     fn rows(&self) -> Vec<serde_json::Value> {
         let store = self.store.read();
         let mut rows: Vec<_> = store.values().cloned().collect();
-        rows.sort_by(|a, b| value_total_cmp(&a["id"], &b["id"]));
-        rows
+        rows.sort_by(|a, b| return value_total_cmp(&a["id"], &b["id"]));
+        return rows;
     }
 }
 
@@ -84,7 +85,7 @@ where
     E: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
     fn default() -> Self {
-        Self::new()
+        return Self::new();
     }
 }
 
@@ -94,7 +95,7 @@ where
 
 /// The field's JSON value as a float, when numeric.
 fn as_f64(v: &serde_json::Value) -> Option<f64> {
-    v.as_f64()
+    return v.as_f64();
 }
 
 /// Numeric-or-lexicographic comparison; `None` for incomparable pairs.
@@ -103,8 +104,8 @@ fn cmp_values(a: &serde_json::Value, b: &serde_json::Value) -> Option<Ordering> 
         return x.partial_cmp(&y);
     }
     match (a, b) {
-        (serde_json::Value::String(x), serde_json::Value::String(y)) => Some(x.cmp(y)),
-        _ => None,
+        (serde_json::Value::String(x), serde_json::Value::String(y)) => return Some(x.cmp(y)),
+        _ => return None,
     }
 }
 
@@ -115,48 +116,48 @@ fn value_total_cmp(a: &serde_json::Value, b: &serde_json::Value) -> Ordering {
         return x.total_cmp(&y);
     }
     match (a, b) {
-        (serde_json::Value::Null, serde_json::Value::Null) => Ordering::Equal,
-        (serde_json::Value::Null, _) => Ordering::Less,
-        (_, serde_json::Value::Null) => Ordering::Greater,
-        (serde_json::Value::Bool(x), serde_json::Value::Bool(y)) => x.cmp(y),
-        (serde_json::Value::String(x), serde_json::Value::String(y)) => x.cmp(y),
-        _ => a.to_string().cmp(&b.to_string()),
+        (serde_json::Value::Null, serde_json::Value::Null) => return Ordering::Equal,
+        (serde_json::Value::Null, _) => return Ordering::Less,
+        (_, serde_json::Value::Null) => return Ordering::Greater,
+        (serde_json::Value::Bool(x), serde_json::Value::Bool(y)) => return x.cmp(y),
+        (serde_json::Value::String(x), serde_json::Value::String(y)) => return x.cmp(y),
+        _ => return a.to_string().cmp(&b.to_string()),
     }
 }
 
 /// Numeric equality with int/float coercion (exact; no epsilon).
 fn value_eq(a: &serde_json::Value, b: &serde_json::Value) -> bool {
     match (as_f64(a), as_f64(b)) {
-        (Some(x), Some(y)) => x == y,
-        _ => a == b,
+        (Some(x), Some(y)) => return x == y,
+        _ => return a == b,
     }
 }
 
 /// Parse a JSON string as an RFC 3339 instant.
 fn parse_dt(v: &serde_json::Value) -> Option<DateTime<Utc>> {
     let s = v.as_str()?;
-    DateTime::parse_from_rfc3339(s)
+    return DateTime::parse_from_rfc3339(s)
         .ok()
-        .map(|d| d.with_timezone(&Utc))
+        .map(|d| return d.with_timezone(&Utc));
 }
 
 /// A field's value: `None` when the row is not an object or the key is
 /// missing.
 fn field_of<'a>(row: &'a serde_json::Value, field: &str) -> Option<&'a serde_json::Value> {
-    row.get(field)
+    return row.get(field);
 }
 
 /// `Eq`-style match for a non-range operand.
 fn eq_match(field: Option<&serde_json::Value>, value: &FilterValue) -> bool {
     match value {
-        FilterValue::Null => field.is_none() || field == Some(&serde_json::Value::Null),
-        FilterValue::Bool(b) => field == Some(&serde_json::Value::Bool(*b)),
-        FilterValue::Int(i) => field.and_then(as_f64) == Some(*i as f64),
-        FilterValue::Float(f) => field.and_then(as_f64) == Some(*f),
-        FilterValue::Str(s) => field == Some(&serde_json::Value::String(s.clone())),
-        FilterValue::DateTime(dt) => field.and_then(parse_dt) == Some(*dt),
+        FilterValue::Null => return field.is_none() || field == Some(&serde_json::Value::Null),
+        FilterValue::Bool(b) => return field == Some(&serde_json::Value::Bool(*b)),
+        FilterValue::Int(i) => return field.and_then(as_f64) == Some(*i as f64),
+        FilterValue::Float(f) => return field.and_then(as_f64) == Some(*f),
+        FilterValue::Str(s) => return field == Some(&serde_json::Value::String(s.clone())),
+        FilterValue::DateTime(dt) => return field.and_then(parse_dt) == Some(*dt),
         // `In` and `Range` are handled by their operators.
-        FilterValue::In(_) | FilterValue::Range { .. } => false,
+        FilterValue::In(_) | FilterValue::Range { .. } => return false,
     }
 }
 
@@ -169,11 +170,11 @@ fn range_match(field: Option<&serde_json::Value>, range: &FilterValue) -> bool {
         return false;
     };
     // A non-numeric bound is treated as unconstrained.
-    let gt_ok = gt.as_ref().and_then(as_f64).is_none_or(|b| v > b);
-    let gte_ok = gte.as_ref().and_then(as_f64).is_none_or(|b| v >= b);
-    let lt_ok = lt.as_ref().and_then(as_f64).is_none_or(|b| v < b);
-    let lte_ok = lte.as_ref().and_then(as_f64).is_none_or(|b| v <= b);
-    gt_ok && gte_ok && lt_ok && lte_ok
+    let gt_ok = gt.as_ref().and_then(as_f64).is_none_or(|b| return v > b);
+    let gte_ok = gte.as_ref().and_then(as_f64).is_none_or(|b| return v >= b);
+    let lt_ok = lt.as_ref().and_then(as_f64).is_none_or(|b| return v < b);
+    let lte_ok = lte.as_ref().and_then(as_f64).is_none_or(|b| return v <= b);
+    return gt_ok && gte_ok && lt_ok && lte_ok;
 }
 
 /// One predicate over one row.
@@ -181,11 +182,11 @@ fn eval_field(row: &serde_json::Value, field: &str, op: FilterOp, value: &Filter
     let fv = field_of(row, field);
     match op {
         FilterOp::Eq => match value {
-            FilterValue::Range { .. } => range_match(fv, value),
-            _ => eq_match(fv, value),
+            FilterValue::Range { .. } => return range_match(fv, value),
+            _ => return eq_match(fv, value),
         },
         // Missing field is not equal to anything, so `Ne` is true.
-        FilterOp::Ne => !eq_match(fv, value),
+        FilterOp::Ne => return !eq_match(fv, value),
         FilterOp::Gt | FilterOp::Gte | FilterOp::Lt | FilterOp::Lte => {
             let Some(fv) = fv else { return false };
             let bound = match value {
@@ -202,78 +203,89 @@ fn eval_field(row: &serde_json::Value, field: &str, op: FilterOp, value: &Filter
                 return false;
             };
             match op {
-                FilterOp::Gt => ord == Ordering::Greater,
-                FilterOp::Gte => ord != Ordering::Less,
-                FilterOp::Lt => ord == Ordering::Less,
-                FilterOp::Lte => ord != Ordering::Greater,
+                FilterOp::Gt => return ord == Ordering::Greater,
+                FilterOp::Gte => return ord != Ordering::Less,
+                FilterOp::Lt => return ord == Ordering::Less,
+                FilterOp::Lte => return ord != Ordering::Greater,
                 _ => unreachable!(),
             }
         }
-        FilterOp::In => fv.is_some_and(|v| {
-            let FilterValue::In(candidates) = value else {
-                return false;
-            };
-            candidates.iter().any(|c| value_eq(v, c))
-        }),
+        FilterOp::In => {
+            return fv.is_some_and(|v| {
+                let FilterValue::In(candidates) = value else {
+                    return false;
+                };
+                return candidates.iter().any(|c| return value_eq(v, c));
+            });
+        }
         FilterOp::NotIn => {
             let FilterValue::In(candidates) = value else {
                 return false;
             };
-            !fv.is_some_and(|v| candidates.iter().any(|c| value_eq(v, c)))
+            return !fv.is_some_and(|v| return candidates.iter().any(|c| return value_eq(v, c)));
         }
-        FilterOp::Contains => fv.and_then(serde_json::Value::as_str).is_some_and(|s| {
-            let FilterValue::Str(needle) = value else {
-                return false;
-            };
-            s.contains(needle)
-        }),
-        FilterOp::StartsWith => fv.and_then(serde_json::Value::as_str).is_some_and(|s| {
-            let FilterValue::Str(prefix) = value else {
-                return false;
-            };
-            s.starts_with(prefix)
-        }),
-        FilterOp::IsNull => fv.is_none() || fv == Some(&serde_json::Value::Null),
-        FilterOp::IsNotNull => fv.is_some() && fv != Some(&serde_json::Value::Null),
-        FilterOp::FullText => fv.and_then(serde_json::Value::as_str).is_some_and(|s| {
-            let FilterValue::Str(term) = value else {
-                return false;
-            };
-            s.to_lowercase().contains(&term.to_lowercase())
-        }),
+        FilterOp::Contains => {
+            return fv.and_then(serde_json::Value::as_str).is_some_and(|s| {
+                let FilterValue::Str(needle) = value else {
+                    return false;
+                };
+                return s.contains(needle);
+            });
+        }
+        FilterOp::StartsWith => {
+            return fv.and_then(serde_json::Value::as_str).is_some_and(|s| {
+                let FilterValue::Str(prefix) = value else {
+                    return false;
+                };
+                return s.starts_with(prefix);
+            });
+        }
+        FilterOp::IsNull => return fv.is_none() || fv == Some(&serde_json::Value::Null),
+        FilterOp::IsNotNull => return fv.is_some() && fv != Some(&serde_json::Value::Null),
+        FilterOp::FullText => {
+            return fv.and_then(serde_json::Value::as_str).is_some_and(|s| {
+                let FilterValue::Str(term) = value else {
+                    return false;
+                };
+                return s.to_lowercase().contains(&term.to_lowercase());
+            });
+        }
     }
 }
 
 /// Evaluate a filter tree against one row, with short-circuiting.
 fn eval_filter(node: &FilterNode, row: &serde_json::Value) -> bool {
     match node {
-        FilterNode::Field { field, op, value } => eval_field(row, field, *op, value),
-        FilterNode::And(children) => children.iter().all(|c| eval_filter(c, row)),
-        FilterNode::Or(children) => children.iter().any(|c| eval_filter(c, row)),
-        FilterNode::Not(child) => !eval_filter(child, row),
+        FilterNode::Field { field, op, value } => return eval_field(row, field, *op, value),
+        FilterNode::And(children) => return children.iter().all(|c| return eval_filter(c, row)),
+        FilterNode::Or(children) => return children.iter().any(|c| return eval_filter(c, row)),
+        FilterNode::Not(child) => return !eval_filter(child, row),
     }
 }
 
 /// Rows matching the optional filter.
 fn filtered(rows: &[serde_json::Value], filter: Option<&FilterNode>) -> Vec<serde_json::Value> {
     match filter {
-        Some(node) => rows
-            .iter()
-            .filter(|r| eval_filter(node, r))
-            .cloned()
-            .collect(),
-        None => rows.to_vec(),
+        Some(node) => {
+            return rows
+                .iter()
+                .filter(|r| return eval_filter(node, r))
+                .cloned()
+                .collect();
+        }
+        None => return rows.to_vec(),
     }
 }
 
 /// Case-insensitive substring over any of the search fields' string values.
 fn matches_search(row: &serde_json::Value, term: &str, fields: &[String]) -> bool {
     let term = term.to_lowercase();
-    fields.iter().any(|f| {
-        row.get(f)
+    return fields.iter().any(|f| {
+        return row
+            .get(f)
             .and_then(serde_json::Value::as_str)
-            .is_some_and(|s| s.to_lowercase().contains(&term))
-    })
+            .is_some_and(|s| return s.to_lowercase().contains(&term));
+    });
 }
 
 /// Compare two field values for one sort key, honoring null placement.
@@ -314,10 +326,10 @@ fn sort_cmp(
     }
 
     let ord = cmp_values(a.unwrap(), b.unwrap())
-        .unwrap_or_else(|| a.unwrap().to_string().cmp(&b.unwrap().to_string()));
+        .unwrap_or_else(|| return a.unwrap().to_string().cmp(&b.unwrap().to_string()));
     match dir {
-        SortDir::Asc => ord,
-        SortDir::Desc => ord.reverse(),
+        SortDir::Asc => return ord,
+        SortDir::Desc => return ord.reverse(),
     }
 }
 
@@ -336,11 +348,11 @@ fn sort_rows(rows: &mut Vec<serde_json::Value>, sort: &[crate::query::SortField]
                 return ord;
             }
         }
-        ia.cmp(&ib)
+        return ia.cmp(&ib);
     });
     // Apply the permutation.
     let old = std::mem::take(rows);
-    *rows = order.into_iter().map(|i| old[i].clone()).collect();
+    *rows = order.into_iter().map(|i| return old[i].clone()).collect();
 }
 
 // ---------------------------------------------------------------------------
@@ -371,18 +383,18 @@ fn encode_b64(bytes: &[u8]) -> String {
             '='
         });
     }
-    out
+    return out;
 }
 
 fn decode_b64(s: &str) -> Option<Vec<u8>> {
     fn val(c: u8) -> Option<u8> {
         match c {
-            b'A'..=b'Z' => Some(c - b'A'),
-            b'a'..=b'z' => Some(c - b'a' + 26),
-            b'0'..=b'9' => Some(c - b'0' + 52),
-            b'+' => Some(62),
-            b'/' => Some(63),
-            _ => None,
+            b'A'..=b'Z' => return Some(c - b'A'),
+            b'a'..=b'z' => return Some(c - b'a' + 26),
+            b'0'..=b'9' => return Some(c - b'0' + 52),
+            b'+' => return Some(62),
+            b'/' => return Some(63),
+            _ => return None,
         }
     }
     let mut out = Vec::with_capacity(s.len() / 4 * 3);
@@ -400,16 +412,16 @@ fn decode_b64(s: &str) -> Option<Vec<u8>> {
             out.push((acc >> bits) as u8);
         }
     }
-    Some(out)
+    return Some(out);
 }
 
 fn cursor_index(c: &Cursor) -> Option<usize> {
     let bytes = decode_b64(&c.0)?;
-    std::str::from_utf8(&bytes).ok()?.parse().ok()
+    return std::str::from_utf8(&bytes).ok()?.parse().ok();
 }
 
 fn index_cursor(index: usize) -> Cursor {
-    Cursor(encode_b64(index.to_string().as_bytes()))
+    return Cursor(encode_b64(index.to_string().as_bytes()));
 }
 
 // ---------------------------------------------------------------------------
@@ -442,7 +454,7 @@ fn apply_one(
                 record.insert("id".into(), serde_json::Value::String(id.clone()));
             }
             map.insert(id.clone(), serde_json::Value::Object(record));
-            Ok(Some(id))
+            return Ok(Some(id));
         }
         Mutation::Update { id, patch } => {
             let Some(record) = map.get_mut(id) else {
@@ -460,25 +472,27 @@ fn apply_one(
                 }
                 record.insert(k.clone(), v.clone());
             }
-            Ok(None)
+            return Ok(None);
         }
         Mutation::Delete { id } => {
             if map.remove(id).is_none() {
                 return Err(DataError::NotFound);
             }
-            Ok(None)
+            return Ok(None);
         }
         Mutation::Upsert { id, data } => {
             match apply_one(map, &Mutation::Create { data: data.clone() }) {
-                Ok(id) => Ok(id),
-                Err(DataError::Conflict) => apply_one(
-                    map,
-                    &Mutation::Update {
-                        id: id.clone(),
-                        patch: data.clone(),
-                    },
-                ),
-                Err(e) => Err(e),
+                Ok(id) => return Ok(id),
+                Err(DataError::Conflict) => {
+                    return apply_one(
+                        map,
+                        &Mutation::Update {
+                            id: id.clone(),
+                            patch: data.clone(),
+                        },
+                    );
+                }
+                Err(e) => return Err(e),
             }
         }
     }
@@ -492,48 +506,55 @@ fn apply_one(
 /// (except `Count` and `Distinct`, which are always defined).
 fn measure_value(measure: &Measure, rows: &[serde_json::Value]) -> Option<f64> {
     match measure {
-        Measure::Count => Some(rows.len() as f64),
+        Measure::Count => return Some(rows.len() as f64),
         Measure::Sum(field) => {
             let sum: f64 = rows
                 .iter()
-                .filter_map(|r| r.get(field).and_then(as_f64))
+                .filter_map(|r| return r.get(field).and_then(as_f64))
                 .sum();
-            if rows.iter().any(|r| r.get(field).and_then(as_f64).is_some()) {
-                Some(sum)
+            if rows
+                .iter()
+                .any(|r| return r.get(field).and_then(as_f64).is_some())
+            {
+                return Some(sum);
             } else {
-                None
+                return None;
             }
         }
         Measure::Avg(field) => {
             let vals: Vec<f64> = rows
                 .iter()
-                .filter_map(|r| r.get(field).and_then(as_f64))
+                .filter_map(|r| return r.get(field).and_then(as_f64))
                 .collect();
             if vals.is_empty() {
-                None
+                return None;
             } else {
-                Some(vals.iter().sum::<f64>() / vals.len() as f64)
+                return Some(vals.iter().sum::<f64>() / vals.len() as f64);
             }
         }
-        Measure::Min(field) => rows
-            .iter()
-            .filter_map(|r| r.get(field).and_then(as_f64))
-            .min_by(|a, b| a.total_cmp(b)),
-        Measure::Max(field) => rows
-            .iter()
-            .filter_map(|r| r.get(field).and_then(as_f64))
-            .max_by(|a, b| a.total_cmp(b)),
+        Measure::Min(field) => {
+            return rows
+                .iter()
+                .filter_map(|r| return r.get(field).and_then(as_f64))
+                .min_by(|a, b| return a.total_cmp(b));
+        }
+        Measure::Max(field) => {
+            return rows
+                .iter()
+                .filter_map(|r| return r.get(field).and_then(as_f64))
+                .max_by(|a, b| return a.total_cmp(b));
+        }
         Measure::Distinct(field) => {
             let mut seen = Vec::new();
             for r in rows {
                 if let Some(v) = r
                     .get(field)
-                    .filter(|v| !seen.iter().any(|s| value_eq(s, v)))
+                    .filter(|v| return !seen.iter().any(|s| return value_eq(s, v)))
                 {
                     seen.push(v.clone());
                 }
             }
-            Some(seen.len() as f64)
+            return Some(seen.len() as f64);
         }
     }
 }
@@ -543,7 +564,7 @@ fn truncate(dt: DateTime<Utc>, interval: &Interval) -> DateTime<Utc> {
     let naive = dt.naive_utc();
     let date = naive.date();
     let midnight = |d: chrono::NaiveDate| {
-        DateTime::from_naive_utc_and_offset(d.and_hms_opt(0, 0, 0).unwrap(), Utc)
+        return DateTime::from_naive_utc_and_offset(d.and_hms_opt(0, 0, 0).unwrap(), Utc);
     };
     match interval {
         Interval::Minute => {
@@ -553,7 +574,7 @@ fn truncate(dt: DateTime<Utc>, interval: &Interval) -> DateTime<Utc> {
                 .unwrap()
                 .with_nanosecond(0)
                 .unwrap();
-            DateTime::from_naive_utc_and_offset(naive.date().and_time(t), Utc)
+            return DateTime::from_naive_utc_and_offset(naive.date().and_time(t), Utc);
         }
         Interval::Hour => {
             let t = naive
@@ -564,21 +585,25 @@ fn truncate(dt: DateTime<Utc>, interval: &Interval) -> DateTime<Utc> {
                 .unwrap()
                 .with_nanosecond(0)
                 .unwrap();
-            DateTime::from_naive_utc_and_offset(naive.date().and_time(t), Utc)
+            return DateTime::from_naive_utc_and_offset(naive.date().and_time(t), Utc);
         }
-        Interval::Day => midnight(date),
+        Interval::Day => return midnight(date),
         Interval::Week => {
             let monday = date - Duration::days(date.weekday().num_days_from_monday() as i64);
-            midnight(monday)
+            return midnight(monday);
         }
         Interval::Month => {
-            midnight(chrono::NaiveDate::from_ymd_opt(date.year(), date.month(), 1).unwrap())
+            return midnight(
+                chrono::NaiveDate::from_ymd_opt(date.year(), date.month(), 1).unwrap(),
+            );
         }
         Interval::Quarter => {
             let month = ((date.month() - 1) / 3) * 3 + 1;
-            midnight(chrono::NaiveDate::from_ymd_opt(date.year(), month, 1).unwrap())
+            return midnight(chrono::NaiveDate::from_ymd_opt(date.year(), month, 1).unwrap());
         }
-        Interval::Year => midnight(chrono::NaiveDate::from_ymd_opt(date.year(), 1, 1).unwrap()),
+        Interval::Year => {
+            return midnight(chrono::NaiveDate::from_ymd_opt(date.year(), 1, 1).unwrap());
+        }
     }
 }
 
@@ -590,13 +615,13 @@ fn group_by_field(
     let mut groups: Vec<(serde_json::Value, Vec<serde_json::Value>)> = Vec::new();
     for row in rows {
         let key = row.get(field).cloned().unwrap_or(serde_json::Value::Null);
-        match groups.iter_mut().find(|(k, _)| value_eq(k, &key)) {
+        match groups.iter_mut().find(|(k, _)| return value_eq(k, &key)) {
             Some((_, group)) => group.push(row.clone()),
             None => groups.push((key, vec![row.clone()])),
         }
     }
-    groups.sort_by(|(a, _), (b, _)| value_total_cmp(a, b));
-    groups
+    groups.sort_by(|(a, _), (b, _)| return value_total_cmp(a, b));
+    return groups;
 }
 
 /// Group rows into date-histogram buckets; unparseable/missing values are
@@ -612,13 +637,13 @@ fn group_by_histogram(
             continue;
         };
         let key = serde_json::Value::String(truncate(dt, interval).to_rfc3339());
-        match groups.iter_mut().find(|(k, _)| *k == key) {
+        match groups.iter_mut().find(|(k, _)| return *k == key) {
             Some((_, group)) => group.push(row.clone()),
             None => groups.push((key, vec![row.clone()])),
         }
     }
-    groups.sort_by(|(a, _), (b, _)| value_total_cmp(a, b));
-    groups
+    groups.sort_by(|(a, _), (b, _)| return value_total_cmp(a, b));
+    return groups;
 }
 
 // ---------------------------------------------------------------------------
@@ -631,7 +656,7 @@ where
     E: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
     fn capabilities(&self) -> Capabilities {
-        Capabilities {
+        return Capabilities {
             pagination: PaginationModes::Both,
             totals: true,
             write: WriteCapability::Crud,
@@ -657,9 +682,10 @@ where
             concurrency: ConcurrencySupport::None,
             streaming: true,
             schema_discovery: false,
-        }
+        };
     }
 
+    #[allow(clippy::implicit_return)]
     async fn list(&self, query: &Query) -> Result<Page<E>, DataError> {
         // Filter → search → sort → projection → pagination.
         let mut rows = filtered(&self.rows(), query.filter.as_ref());
@@ -755,12 +781,14 @@ where
         })
     }
 
+    #[allow(clippy::implicit_return)]
     async fn get(&self, id: &String) -> Result<Option<E>, DataError> {
         let row = self.store.read().get(id).cloned();
         row.map(|v| serde_json::from_value(v).map_err(|e| DataError::Internal(Box::new(e))))
             .transpose()
     }
 
+    #[allow(clippy::implicit_return)]
     async fn create(
         &self,
         data: serde_json::Value,
@@ -773,6 +801,7 @@ where
         serde_json::from_value(row).map_err(|e| DataError::Internal(Box::new(e)))
     }
 
+    #[allow(clippy::implicit_return)]
     async fn update(
         &self,
         id: &String,
@@ -791,11 +820,13 @@ where
         serde_json::from_value(row).map_err(|e| DataError::Internal(Box::new(e)))
     }
 
+    #[allow(clippy::implicit_return)]
     async fn delete(&self, id: &String, _ctx: &WriteContext<'_>) -> Result<(), DataError> {
         let mut map = self.store.write();
         apply_one(&mut map, &Mutation::Delete { id: id.clone() }).map(|_| ())
     }
 
+    #[allow(clippy::implicit_return)]
     async fn begin(&self) -> Result<Box<dyn TxAdapter<E>>, DataError> {
         let snapshot = self.store.read().clone();
         Ok(Box::new(InMemoryTx {
@@ -805,6 +836,7 @@ where
         }))
     }
 
+    #[allow(clippy::implicit_return)]
     async fn aggregate(&self, agg: &Aggregation) -> Result<AggregationResult, DataError> {
         let rows = filtered(&self.rows(), agg.filter.as_ref());
 
@@ -851,6 +883,7 @@ where
 // ---------------------------------------------------------------------------
 
 #[async_trait]
+#[allow(clippy::implicit_return)]
 impl<E> TxAdapter<E> for InMemoryTx<E>
 where
     E: Serialize + DeserializeOwned + Send + Sync + 'static,
@@ -895,7 +928,7 @@ mod tests {
     type Adapter = InMemoryAdapter<serde_json::Value>;
 
     fn adapter() -> Adapter {
-        Adapter::new()
+        return Adapter::new();
     }
 
     /// Five stores: 1, 2, 4 active; 3 inactive; 5 archived.
@@ -919,7 +952,7 @@ mod tests {
     }
 
     fn no_page() -> Query {
-        Query {
+        return Query {
             pagination: Pagination::Offset {
                 page: 1,
                 per_page: 100,
@@ -928,15 +961,15 @@ mod tests {
             filter: None,
             search: None,
             projection: None,
-        }
+        };
     }
 
     fn field_node(field: &str, op: FilterOp, value: FilterValue) -> FilterNode {
-        FilterNode::Field {
+        return FilterNode::Field {
             field: field.into(),
             op,
             value,
-        }
+        };
     }
 
     #[test]
@@ -1073,7 +1106,7 @@ mod tests {
         let names: Vec<_> = page
             .items
             .iter()
-            .map(|r| r["name"].as_str().unwrap())
+            .map(|r| return r["name"].as_str().unwrap())
             .collect();
         assert_eq!(names, ["Beta", "Epsilon", "Delta", "Alpha", "Gamma"]);
 
@@ -1087,7 +1120,7 @@ mod tests {
         let names: Vec<_> = page
             .items
             .iter()
-            .map(|r| r["name"].as_str().unwrap())
+            .map(|r| return r["name"].as_str().unwrap())
             .collect();
         assert_eq!(names, ["Delta", "Alpha", "Gamma", "Beta", "Epsilon"]);
     }
@@ -1112,7 +1145,7 @@ mod tests {
         let names: Vec<_> = page
             .items
             .iter()
-            .map(|r| r["name"].as_str().unwrap())
+            .map(|r| return r["name"].as_str().unwrap())
             .collect();
         assert_eq!(names.len(), 3);
         assert!(names.contains(&"Alpha"));
@@ -1178,7 +1211,7 @@ mod tests {
         let ids: Vec<_> = page
             .items
             .iter()
-            .map(|r| r["id"].as_str().unwrap())
+            .map(|r| return r["id"].as_str().unwrap())
             .collect();
         assert_eq!(ids, ["3", "5"]);
     }
@@ -1297,7 +1330,10 @@ mod tests {
             "1".to_string(),
         ]))
         .unwrap();
-        let ids: Vec<_> = rows.iter().map(|r| r["id"].as_str().unwrap()).collect();
+        let ids: Vec<_> = rows
+            .iter()
+            .map(|r| return r["id"].as_str().unwrap())
+            .collect();
         assert_eq!(ids, ["3", "1"]);
     }
 
@@ -1479,7 +1515,7 @@ mod tests {
         let buckets: Vec<_> = result
             .buckets
             .iter()
-            .map(|b| (b.key.as_str().unwrap(), b.value))
+            .map(|b| return (b.key.as_str().unwrap(), b.value))
             .collect();
         assert_eq!(
             buckets,
@@ -1505,7 +1541,7 @@ mod tests {
         let buckets: Vec<_> = result
             .buckets
             .iter()
-            .map(|b| (b.key.as_str().unwrap().to_string(), b.value))
+            .map(|b| return (b.key.as_str().unwrap().to_string(), b.value))
             .collect();
         assert_eq!(
             buckets,
@@ -1540,7 +1576,7 @@ mod tests {
         let stream = futures::executor::block_on(a.stream(no_page()));
         let rows: Vec<_> = futures::executor::block_on(stream.collect::<Vec<_>>());
         assert_eq!(rows.len(), 5);
-        assert!(rows.into_iter().all(|r| r.is_ok()));
+        assert!(rows.into_iter().all(|r| return r.is_ok()));
     }
 
     #[test]

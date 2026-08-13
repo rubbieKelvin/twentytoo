@@ -13,3 +13,6 @@ async-trait.workspace = true
 uuid.workspace = true
 futures.workspace = true
 parking_lot.workspace = true
+
+[lints]
+workspace = true

@@ -27,13 +27,13 @@ pub enum DataError {
 impl std::fmt::Display for DataError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DataError::NotFound => write!(f, "record not found"),
-            DataError::Conflict => write!(f, "conflict"),
-            DataError::Validation(msg) => write!(f, "validation error: {msg}"),
-            DataError::Unauthorized => write!(f, "unauthorized"),
-            DataError::RateLimited => write!(f, "rate limited"),
-            DataError::Unsupported => write!(f, "unsupported"),
-            DataError::Internal(e) => write!(f, "internal error: {e}"),
+            DataError::NotFound => return write!(f, "record not found"),
+            DataError::Conflict => return write!(f, "conflict"),
+            DataError::Validation(msg) => return write!(f, "validation error: {msg}"),
+            DataError::Unauthorized => return write!(f, "unauthorized"),
+            DataError::RateLimited => return write!(f, "rate limited"),
+            DataError::Unsupported => return write!(f, "unsupported"),
+            DataError::Internal(e) => return write!(f, "internal error: {e}"),
         }
     }
 }
@@ -41,8 +41,8 @@ impl std::fmt::Display for DataError {
 impl std::error::Error for DataError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            DataError::Internal(e) => Some(e.as_ref()),
-            _ => None,
+            DataError::Internal(e) => return Some(e.as_ref()),
+            _ => return None,
         }
     }
 }

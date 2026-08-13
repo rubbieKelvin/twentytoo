@@ -29,16 +29,16 @@ impl Actor {
         let Some((req_res, req_act)) = split_once(permission) else {
             return false;
         };
-        self.permissions.iter().any(|entry| {
-            split_once(entry).is_some_and(|(res, act)| {
-                (res == "*" || res == req_res) && (act == "*" || act == req_act)
-            })
-        })
+        return self.permissions.iter().any(|entry| {
+            return split_once(entry).is_some_and(|(res, act)| {
+                return (res == "*" || res == req_res) && (act == "*" || act == req_act);
+            });
+        });
     }
 
     /// Whether the actor holds `role` exactly.
     pub fn has_role(&self, role: &str) -> bool {
-        self.roles.iter().any(|r| r == role)
+        return self.roles.iter().any(|r| return r == role);
     }
 }
 
@@ -48,7 +48,7 @@ fn split_once(s: &str) -> Option<(&str, &str)> {
     if rest.is_empty() || rest.contains('.') {
         return None;
     }
-    Some((res, rest))
+    return Some((res, rest));
 }
 
 #[cfg(test)]
@@ -56,13 +56,13 @@ mod tests {
     use super::*;
 
     fn actor(permissions: &[&str]) -> Actor {
-        Actor {
+        return Actor {
             id: "u1".into(),
             email: "u1@example.com".into(),
             roles: vec![],
-            permissions: permissions.iter().map(|s| s.to_string()).collect(),
+            permissions: permissions.iter().map(|s| return s.to_string()).collect(),
             team_id: None,
-        }
+        };
     }
 
     #[test]

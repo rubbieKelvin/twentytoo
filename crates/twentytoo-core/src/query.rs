@@ -107,20 +107,20 @@ pub struct SortField {
 impl SortField {
     /// Ascending sort on `field`, default null ordering.
     pub fn asc(field: impl Into<String>) -> Self {
-        Self {
+        return Self {
             field: field.into(),
             dir: SortDir::Asc,
             nulls: NullsOrder::Default,
-        }
+        };
     }
 
     /// Descending sort on `field`, default null ordering.
     pub fn desc(field: impl Into<String>) -> Self {
-        Self {
+        return Self {
             field: field.into(),
             dir: SortDir::Desc,
             nulls: NullsOrder::Default,
-        }
+        };
     }
 }
 

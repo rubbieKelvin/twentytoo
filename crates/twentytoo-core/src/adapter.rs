@@ -21,6 +21,7 @@ use crate::write::{Mutation, WriteContext};
 /// (and `Arc<dyn DataAdapter<E>>` on `Resource`) stay usable in the registry
 /// without naming the concrete id type.
 #[async_trait]
+#[allow(clippy::implicit_return)]
 pub trait DataAdapter<E, Id = String>: Send + Sync
 where
     E: Serialize + DeserializeOwned + Send + Sync + 'static,
@@ -204,6 +205,7 @@ where
 /// Separate sub-trait so the main trait stays object-safe and read-only
 /// adapters never see transaction machinery. `Id` mirrors `DataAdapter`.
 #[async_trait]
+#[allow(clippy::implicit_return)]
 pub trait TxAdapter<E, Id = String>: Send + Sync
 where
     Id: Clone + Send + Sync + Serialize + DeserializeOwned + std::fmt::Display + std::str::FromStr,

@@ -58,9 +58,9 @@ pub enum ActionError {
 impl std::fmt::Display for ActionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ActionError::Forbidden => write!(f, "forbidden"),
-            ActionError::Validation(msg) => write!(f, "validation error: {msg}"),
-            ActionError::Internal(e) => write!(f, "internal error: {e}"),
+            ActionError::Forbidden => return write!(f, "forbidden"),
+            ActionError::Validation(msg) => return write!(f, "validation error: {msg}"),
+            ActionError::Internal(e) => return write!(f, "internal error: {e}"),
         }
     }
 }
@@ -68,8 +68,8 @@ impl std::fmt::Display for ActionError {
 impl std::error::Error for ActionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            ActionError::Internal(e) => Some(e.as_ref()),
-            _ => None,
+            ActionError::Internal(e) => return Some(e.as_ref()),
+            _ => return None,
         }
     }
 }
@@ -88,12 +88,12 @@ pub trait Action<E>: Send + Sync {
 
     /// Ask for confirmation before running.
     fn requires_confirmation(&self) -> bool {
-        false
+        return false;
     }
 
     /// Form fields, for actions that take input.
     fn input_fields(&self) -> Vec<ActionField> {
-        Vec::new()
+        return Vec::new();
     }
 
     /// Permission required, `"resource.action"` form.
@@ -101,10 +101,11 @@ pub trait Action<E>: Send + Sync {
 
     /// Feature flag gating this action.
     fn flag(&self) -> Option<&'static str> {
-        None
+        return None;
     }
 
     /// Run the action. `record` is `None` for `Standalone` actions.
+    #[allow(clippy::implicit_return)]
     async fn execute(
         &self,
         record: &mut E,
