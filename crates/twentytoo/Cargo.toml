@@ -1,0 +1,12 @@
+[package]
+name = "twentytoo"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+twentytoo-core = { path = "../twentytoo-core" }
+
+[dev-dependencies]
+serde_json.workspace = true

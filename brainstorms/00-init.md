@@ -1,4 +1,4 @@
-# 00-init.md — Internal Tools Dashboard Framework
+# 00-init.md  Internal Tools Dashboard Framework
 
 **Working name:** Twentytoo
 **Status:** Pre-implementation brainstorm
