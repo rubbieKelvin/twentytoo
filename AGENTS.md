@@ -27,7 +27,7 @@ Data flow:
 
 `InMemoryAdapter<E>` (`in_memory.rs`) is a complete HashMap-backed engine: filter tree, offset + base64 cursor pagination, multi-column sort with nulls ordering, search, projection, transactions (`InMemoryTx`), aggregations, streaming. It is the reference implementation that proves the contract.
 
-HTTP layer (`crates/twentytoo/src/`): `app.rs` (builder + boot validation), `handlers.rs` (generic list/detail/create/update/delete + home, per-resource monomorphized routers carrying `ResourceState<R>`), `templates.rs` (MiniJinja env: autoescape by extension, `can`/`format_field`/`format_filter`/`form_control` functions, `format_datetime`/`currency` filters, built-ins embedded via `build.rs` with user-override dir + path loader), `view.rs` (serializable `ResourceView`/`KindView`/`PagerView` models), `payload.rs` (form → entity JSON with field-level validation), `error.rs` (`AppError`/`BuildError`), `flags.rs`, `registry.rs`, `state.rs`. Templates live in `crates/twentytoo/templates/` (`.j2`). The demo (`examples/demo.rs`) boots two resources on `InMemoryAdapter` — no database required (`03` §15).
+HTTP layer (`crates/twentytoo/src/`): `app.rs` (builder + boot validation), `handlers.rs` (generic list/detail/create/update/delete + home, per-resource monomorphized routers carrying `ResourceState<R>`), `templates.rs` (MiniJinja env: autoescape by extension, `can`/`format_field`/`format_filter`/`form_control` functions, `format_datetime`/`currency` filters, built-ins embedded via `build.rs` with user-override dir + path loader), `view.rs` (serializable `ResourceView`/`KindView`/`PagerView` models), `payload.rs` (form → entity JSON with field-level validation), `error.rs` (`AppError`/`BuildError`), `flags.rs`, `registry.rs`, `state.rs`. Templates live in `crates/twentytoo/templates/` (`.j2`). The demo (`examples/demo/`) boots two resources on `InMemoryAdapter` — no database required (`03` §15).
 
 ## Key Directories
 
@@ -36,7 +36,7 @@ HTTP layer (`crates/twentytoo/src/`): `app.rs` (builder + boot validation), `han
 | `crates/twentytoo-core/src/` | The contract: `adapter.rs` (DataAdapter/TxAdapter), `resource.rs`, `field.rs` (+ `field!`/`fields!` macros), `query.rs`, `write.rs`, `actor.rs`, `policy.rs`, `action.rs`, `capabilities.rs`, `aggregation.rs`, `audit.rs`, `error.rs`, `in_memory.rs` |
 | `crates/twentytoo/src/` | The HTTP layer: `app.rs`, `handlers.rs`, `templates.rs`, `view.rs`, `payload.rs`, `error.rs`, `flags.rs`, `registry.rs`, `state.rs`, `util.rs` |
 | `crates/twentytoo/templates/` | Built-in `.j2` templates (embedded at build time) |
-| `crates/twentytoo/examples/demo.rs` | Demo app: users + stores on `InMemoryAdapter` |
+| `crates/twentytoo/examples/demo/` | Demo app: users + stores on `InMemoryAdapter` |
 | `brainstorms/` | Design docs 00–05; source of truth for intent and decisions |
 | `.github/workflows/ci.yml` | The only quality gate config |
 
