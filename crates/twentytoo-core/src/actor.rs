@@ -2,12 +2,15 @@
 
 /// The actor behind a request — the subject of policies, actions, and audit.
 ///
-/// Permission strings are `"resource.action"`. A stored entry matches a
+/// Permission strings are `"resource.action"` format. A stored entry matches a
 /// requested permission iff it has exactly two segments and each stored
 /// segment equals the requested segment or is `"*"` (`*.view` matches
 /// `stores.view`; `stores.*` matches `stores.view`). Entries without a `.`,
 /// with more than two segments, or with a case difference never match.
-#[derive(Clone, Debug, PartialEq, Eq)]
+///
+/// Serde derives exist for the render layer: the actor travels in template
+/// contexts (`05` §7) and the template `can()` function reads it back.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Actor {
     /// Stable user id.
     pub id: String,

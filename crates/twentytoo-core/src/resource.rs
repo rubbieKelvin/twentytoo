@@ -9,7 +9,7 @@ use crate::action::Action;
 use crate::adapter::DataAdapter;
 use crate::field::Field;
 use crate::policy::Policy;
-use crate::query::SortField;
+use crate::query::{FilterOp, SortField};
 
 /// A tab linking this resource to a related one.
 ///
@@ -28,10 +28,26 @@ pub struct Relationship {
     pub foreign_key: String,
 }
 
+/// One filter the list sidebar offers, over one field.
+///
+/// The engine renders the control from the field's kind and consults the
+/// adapter's `filter_ops` before offering it; `Eq` on a `Select`/`Badge`
+/// field renders a picker, `Contains` renders a text input, and range
+/// operators render min/max inputs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FilterSpec {
+    /// Field name (from `fields()`).
+    pub field: &'static str,
+    /// Operator the control applies.
+    pub op: FilterOp,
+    /// Sidebar label; falls back to the field's label when `None`.
+    pub label: Option<&'static str>,
+}
+
 /// One resource of the framework: entity, fields, actions, policy, adapter.
 ///
-/// `filters()` and `metrics()` are deliberately absent this slice — they
-/// arrive as defaulted methods in the list-view / metrics slices.
+/// `metrics()` is deliberately absent this slice — it arrives as a
+/// defaulted method in the metrics slice.
 pub trait Resource: Send + Sync + 'static {
     /// The typed entity this resource reads and writes.
     type Entity: Serialize + DeserializeOwned + Send + Sync + Clone + 'static;
@@ -60,6 +76,11 @@ pub trait Resource: Send + Sync + 'static {
 
     /// Fields searched by the search box (names from `fields()`).
     fn search_fields(&self) -> Vec<&'static str> {
+        return Vec::new();
+    }
+
+    /// Filters the list sidebar offers. Default: none.
+    fn filters(&self) -> Vec<FilterSpec> {
         return Vec::new();
     }
 
@@ -161,6 +182,7 @@ mod tests {
         assert_eq!(r.list_columns(), vec!["id", "name", "status"]);
         assert_eq!(r.default_sort(), vec![SortField::desc("created_at")]);
         assert!(r.search_fields().is_empty());
+        assert!(r.filters().is_empty());
         assert!(r.relationships().is_empty());
         assert!(r.actions().is_empty());
         assert!(!r.policy().can_view_any(&crate::actor::Actor {

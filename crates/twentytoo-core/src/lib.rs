@@ -36,7 +36,7 @@ pub use crate::query::{
     Cursor, FilterNode, FilterOp, FilterValue, NullsOrder, Page, Pagination, Query, SearchMode,
     SearchSpec, SortDir, SortField,
 };
-pub use crate::resource::{Relationship, Resource};
+pub use crate::resource::{FilterSpec, Relationship, Resource};
 pub use crate::write::{Mutation, Version, WriteContext};
 
 /// One-stop import for the common consumer surface.
@@ -59,7 +59,7 @@ pub mod prelude {
         Cursor, FilterNode, FilterOp, FilterValue, NullsOrder, Page, Pagination, Query, SearchMode,
         SearchSpec, SortDir, SortField,
     };
-    pub use crate::resource::{Relationship, Resource};
+    pub use crate::resource::{FilterSpec, Relationship, Resource};
     pub use crate::write::{Mutation, Version, WriteContext};
     pub use crate::{field, fields};
 }

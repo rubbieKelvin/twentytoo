@@ -1,0 +1,36 @@
+{# Renders exactly one pager: numbered pages when the source can count
+   cheaply (Page.total: Some), prev/next otherwise (03 §4.3). #}
+{% if pager.mode == "numbered" and pager.total_pages > 1 %}
+<nav class="pagination" hx-boost="true">
+  {% if pager.prev_url %}
+    <a href="{{ pager.prev_url }}" hx-get="{{ pager.prev_url }}" hx-target="#resource-table">« Prev</a>
+  {% else %}
+    <span class="off">« Prev</span>
+  {% endif %}
+  {% for link in pager.page_links %}
+    {% if link.page == pager.current %}
+      <span class="current">{{ link.page }}</span>
+    {% else %}
+      <a href="{{ link.url }}" hx-get="{{ link.url }}" hx-target="#resource-table">{{ link.page }}</a>
+    {% endif %}
+  {% endfor %}
+  {% if pager.next_url %}
+    <a href="{{ pager.next_url }}" hx-get="{{ pager.next_url }}" hx-target="#resource-table">Next »</a>
+  {% else %}
+    <span class="off">Next »</span>
+  {% endif %}
+</nav>
+{% elif pager.mode == "prevnext" and (pager.prev_url or pager.next_url) %}
+<nav class="pagination" hx-boost="true">
+  {% if pager.prev_url %}
+    <a href="{{ pager.prev_url }}" hx-get="{{ pager.prev_url }}" hx-target="#resource-table">« Prev</a>
+  {% else %}
+    <span class="off">« Prev</span>
+  {% endif %}
+  {% if pager.next_url %}
+    <a href="{{ pager.next_url }}" hx-get="{{ pager.next_url }}" hx-target="#resource-table">Next »</a>
+  {% else %}
+    <span class="off">Next »</span>
+  {% endif %}
+</nav>
+{% endif %}

@@ -1,0 +1,27 @@
+{% extends "layout/base.html.j2" %}
+
+{% block title %}{{ resource.label }} #{{ record.id }} — Twentytoo{% endblock %}
+
+{% block content %}
+<div class="resource-header">
+  <h1>{{ resource.label }} #{{ record.id }}</h1>
+  <div class="actions">
+    {% if can_update %}
+      <a class="btn" href="/{{ resource.key }}/{{ record.id }}/edit">Edit</a>
+    {% endif %}
+    {% if can_delete %}
+      <form method="post" action="/{{ resource.key }}/{{ record.id }}/delete"
+            onsubmit="return confirm('Delete this {{ resource.label }}?');">
+        <button class="btn btn-danger">Delete</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<dl class="detail">
+  {% for f in resource.detail_fields %}
+    <dt>{{ f.label }}</dt>
+    <dd>{{ format_field(record[f.name], f.kind) }}</dd>
+  {% endfor %}
+</dl>
+{% endblock %}
