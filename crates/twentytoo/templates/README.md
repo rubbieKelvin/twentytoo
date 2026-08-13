@@ -60,7 +60,7 @@ Rules:
 
 ## Context variables
 
-Handlers build the context with `minijinja::context!` (`src/handlers.rs`). Do
+Handlers build the context with `minijinja::context!` (`src/handlers/`). Do
 not reference keys that aren't listed — undefined variables render empty by
 default (lenient), which silently hides typos.
 

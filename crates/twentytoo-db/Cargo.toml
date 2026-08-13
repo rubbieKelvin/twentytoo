@@ -1,0 +1,18 @@
+[package]
+name = "twentytoo-db"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+twentytoo-core = { path = "../twentytoo-core" }
+sqlx = { workspace = true }
+chrono.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[lints]
+workspace = true
