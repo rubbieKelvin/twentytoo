@@ -3,8 +3,13 @@
 //! The client holds a random token; the table stores only its hash, so a
 //! database leak never yields usable credentials. Callers hash the token
 //! (e.g. SHA-256 hex) before calling these methods.
+//!
+//! Tracking is deliberately wide: [`SessionInfo`] carries the common
+//! request facts as optional fields plus an open `metadata` JSON object for
+//! anything a deployment wants to record.
 
 use chrono::{DateTime, Utc};
+use serde_json::Value;
 use sqlx::FromRow;
 use uuid::Uuid;
 
@@ -18,8 +23,8 @@ pub struct Session {
     pub token_hash: String,
     /// The user the session belongs to.
     pub user_id: Uuid,
-    /// The team this session acts within, if any.
-    pub team_id: Option<Uuid>,
+    /// The group this session acts within, if any.
+    pub group_id: Option<Uuid>,
     /// When the session was created.
     pub created_at: DateTime<Utc>,
     /// Sessions past this point are invalid.
@@ -30,31 +35,90 @@ pub struct Session {
     pub user_agent: Option<String>,
     /// The client's address at creation, as a string.
     pub ip: Option<String>,
+    /// The page that led to sign-in, if sent.
+    pub referrer: Option<String>,
+    /// The client's `Accept-Language` header, if sent.
+    pub accept_language: Option<String>,
+    /// Device label, e.g. `"iPhone"` or `"Desktop"`.
+    pub device: Option<String>,
+    /// Operating system, e.g. `"macOS"`.
+    pub os: Option<String>,
+    /// Browser, e.g. `"Chrome"`.
+    pub browser: Option<String>,
+    /// Arbitrary extra tracking data (extra headers, geolocation,
+    /// correlation ids, …). An empty object when nothing was recorded.
+    pub metadata: Value,
+}
+
+/// Optional tracking facts captured at session creation. Every field is
+/// optional; build one with the struct-update syntax or [`Default`].
+#[derive(Clone, Debug)]
+pub struct SessionInfo {
+    /// The client's user-agent.
+    pub user_agent: Option<String>,
+    /// The client's address, as a string.
+    pub ip: Option<String>,
+    /// The page that led to sign-in.
+    pub referrer: Option<String>,
+    /// The client's `Accept-Language` header.
+    pub accept_language: Option<String>,
+    /// Device label.
+    pub device: Option<String>,
+    /// Operating system.
+    pub os: Option<String>,
+    /// Browser.
+    pub browser: Option<String>,
+    /// Arbitrary extra tracking data.
+    pub metadata: Value,
+}
+
+impl Default for SessionInfo {
+    fn default() -> Self {
+        return Self {
+            user_agent: None,
+            ip: None,
+            referrer: None,
+            accept_language: None,
+            device: None,
+            os: None,
+            browser: None,
+            metadata: Value::Object(serde_json::Map::new()),
+        };
+    }
 }
 
 impl Db {
-    /// Create a session for `user_id`, optionally scoped to a team.
+    /// Create a session for `user_id`, optionally scoped to a group, with
+    /// the optional tracking facts in `info`.
     pub async fn create_session(
         &self,
         token_hash: &str,
         user_id: &Uuid,
-        team_id: Option<&Uuid>,
+        group_id: Option<&Uuid>,
         expires_at: DateTime<Utc>,
-        user_agent: Option<&str>,
-        ip: Option<&str>,
+        info: &SessionInfo,
     ) -> Result<Session, DbError> {
         let row = sqlx::query_as::<_, Session>(
-            "INSERT INTO sessions (token_hash, user_id, team_id, expires_at, user_agent, ip)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING token_hash, user_id, team_id, created_at, expires_at,
-                       last_seen_at, user_agent, ip",
+            "INSERT INTO sessions
+                 (token_hash, user_id, group_id, expires_at, user_agent, ip,
+                  referrer, accept_language, device, os, browser, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+             RETURNING token_hash, user_id, group_id, created_at, expires_at,
+                       last_seen_at, user_agent, ip, referrer, accept_language,
+                       device, os, browser, metadata",
         )
         .bind(token_hash)
         .bind(user_id)
-        .bind(team_id)
+        .bind(group_id)
         .bind(expires_at)
-        .bind(user_agent)
-        .bind(ip)
+        .bind(info.user_agent.as_deref())
+        .bind(info.ip.as_deref())
+        .bind(info.referrer.as_deref())
+        .bind(info.accept_language.as_deref())
+        .bind(info.device.as_deref())
+        .bind(info.os.as_deref())
+        .bind(info.browser.as_deref())
+        .bind(&info.metadata)
         .fetch_one(&self.pool)
         .await?;
         return Ok(row);
@@ -64,8 +128,9 @@ impl Db {
     /// tokens.
     pub async fn get_session(&self, token_hash: &str) -> Result<Option<Session>, DbError> {
         let row = sqlx::query_as::<_, Session>(
-            "SELECT token_hash, user_id, team_id, created_at, expires_at,
-                    last_seen_at, user_agent, ip
+            "SELECT token_hash, user_id, group_id, created_at, expires_at,
+                    last_seen_at, user_agent, ip, referrer, accept_language,
+                    device, os, browser, metadata
              FROM sessions
              WHERE token_hash = $1 AND expires_at > now()",
         )

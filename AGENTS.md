@@ -4,7 +4,7 @@
 
 Twentytoo is an internal-tools dashboard framework: teams declare resources, fields, actions, metrics, pages, and policies instead of writing CRUD code. The design intent lives in `brainstorms/00-init.md` through `brainstorms/06-astro-web-ui.md` (numbered records; 05 is the latest decision — Rust is the confirmed reference language, MiniJinja for templating; 06 is a decision-pending brainstorm on Astro for the web UI).
 
-The workspace ships the **core contract** (traits + the `InMemoryAdapter` reference implementation), the **HTTP layer** (generic CRUD handlers over axum, a MiniJinja template engine with framework functions, the built-in `.j2` templates, and a builder that assembles the router with boot-time validation), and the **database layer** (PostgreSQL migrations + a typed access layer for the framework-owned tables: users, sessions, teams, roles, permissions). Audit logging, the generic SQLx resource adapter, actions, metrics, and the module system are the deferred slices ("arrive in later slices" — `crates/twentytoo/src/lib.rs`).
+The workspace ships the **core contract** (traits + the `InMemoryAdapter` reference implementation), the **HTTP layer** (generic CRUD handlers over axum, a MiniJinja template engine with framework functions, the built-in `.j2` templates, and a builder that assembles the router with boot-time validation), and the **database layer** (PostgreSQL migrations + a typed access layer for the framework-owned tables: users, sessions, groups, roles, permissions, and the append-only audit log). Audit logging, the generic SQLx resource adapter, actions, metrics, and the module system are the deferred slices ("arrive in later slices" — `crates/twentytoo/src/lib.rs`).
 
 ## Architecture & Data Flow
 
@@ -12,7 +12,7 @@ Three-crate Cargo workspace (`Cargo.toml`):
 
 - **`crates/twentytoo-core`** — the library every other slice builds on. 13 modules, one concept each. Runtime-agnostic: no tokio, no HTTP, no IO.
 - **`crates/twentytoo`** — the HTTP layer: axum handlers, MiniJinja templates, and the app builder; re-exports `twentytoo_core::*` and mirrors its `prelude`.
-- **`crates/twentytoo-db`** — PostgreSQL (sqlx 0.8): the embedded schema (`migrations/`, `MIGRATOR`) and a typed access layer on a `Db` pool handle — users/sessions (auth), teams/`team_members` (groupings), roles/permissions/`user_roles` with `load_actor` expanding grants into the core `Actor` (RBAC). Runtime-bound queries, so the crate builds with no live database; integration tests in `tests/db.rs` run against `DATABASE_URL` and skip when it is unset (CI provides a Postgres service).
+- **`crates/twentytoo-db`** — PostgreSQL (sqlx 0.8): the embedded schema (`migrations/`, `MIGRATOR`) and a typed access layer on a `Db` pool handle — users/sessions (auth), groups/`group_members` (groupings), roles/permissions with `user_roles` + `group_roles` and `load_actor` expanding grants into the core `Actor` (RBAC), and the append-only audit log. Runtime-bound queries, so the crate builds with no live database; integration tests in `tests/db.rs` run against `DATABASE_URL` and skip when it is unset (CI provides a Postgres service).
 
 Central contract — `DataAdapter<E, Id = String>` (`crates/twentytoo-core/src/adapter.rs`), an `#[async_trait]` with a **graded** surface:
 
@@ -36,7 +36,7 @@ HTTP layer (`crates/twentytoo/src/`): `app.rs` (builder + boot validation), `han
 |---|---|
 | `crates/twentytoo-core/src/` | The contract: `adapter.rs` (DataAdapter/TxAdapter), `resource.rs`, `field.rs` (+ `field!`/`fields!` macros), `query.rs`, `write.rs`, `actor.rs`, `policy.rs`, `action.rs`, `capabilities.rs`, `aggregation.rs`, `audit.rs`, `error.rs`, `in_memory.rs` |
 | `crates/twentytoo/src/` | The HTTP layer: `app.rs`, `handlers/` (list, detail, forms, mutations, home, middleware, helpers), `templates.rs`, `view.rs`, `payload.rs`, `error.rs`, `flags.rs`, `registry.rs`, `state.rs`, `util.rs` |
-| `crates/twentytoo-db/` | The DB layer: `migrations/` (users, teams, sessions, roles, permissions, assignments), `lib.rs` (`Db` pool + `MIGRATOR`), `users.rs`, `sessions.rs`, `teams.rs`, `access.rs` (`load_actor`), `error.rs` (`DbError`), `tests/db.rs` (live-Postgres integration) |
+| `crates/twentytoo-db/` | The DB layer: `migrations/` (users, groups, sessions, roles, permissions, group assignments, audit log), `db.rs` (`Db` pool + `MIGRATOR`), `users.rs`, `groups.rs`, `sessions.rs`, `access.rs` (`load_actor`), `audit.rs`, `error.rs` (`DbError`), `tests/db.rs` (live-Postgres integration) |
 | `crates/twentytoo/templates/` | Built-in `.j2` templates (embedded at build time) |
 | `crates/twentytoo/examples/demo/` | Demo app: users + stores on `InMemoryAdapter` |
 | `brainstorms/` | Design docs 00–05; source of truth for intent and decisions |

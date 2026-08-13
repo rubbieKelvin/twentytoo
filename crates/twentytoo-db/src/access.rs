@@ -1,8 +1,9 @@
-//! Roles, permissions, and the actor loader — RBAC (`00-init` §5).
+//! Roles, permissions, grants, and the actor loader — RBAC (`00-init` §5).
 //!
-//! A permission is a `resource.action` code; a role bundles permissions;
-//! a user holds roles globally or within a team. [`Db::load_actor`] is the
-//! centerpiece: it expands a user's grants into the [`Actor`] the request
+//! A permission is a `resource.action` code; a role bundles permissions. A
+//! user holds roles directly (globally, or scoped to a group) and inherits
+//! the roles of every group they belong to. [`Db::load_actor`] is the
+//! centerpiece: it expands that union into the [`Actor`] the request
 //! pipeline sees, matching the core contract where `Actor.permissions` are
 //! "expanded from roles".
 
@@ -153,57 +154,106 @@ impl Db {
         return Ok(rows);
     }
 
-    /// Assign a role to a user. `team_id` `None` = global grant; `Some` =
-    /// the role applies only within that team. Already assigned → no-op
-    /// (the `UNIQUE NULLS NOT DISTINCT` constraint keeps grants unique).
+    /// Assign a role to a user. `group_id` `None` = global grant; `Some` =
+    /// the role applies only while acting within that group. Already
+    /// assigned → no-op (the `UNIQUE NULLS NOT DISTINCT` constraint keeps
+    /// grants unique).
     pub async fn assign_role(
         &self,
         user_id: &Uuid,
         role_id: &Uuid,
-        team_id: Option<&Uuid>,
+        group_id: Option<&Uuid>,
     ) -> Result<(), DbError> {
         sqlx::query(
-            "INSERT INTO user_roles (user_id, role_id, team_id) VALUES ($1, $2, $3)
+            "INSERT INTO user_roles (user_id, role_id, group_id) VALUES ($1, $2, $3)
              ON CONFLICT DO NOTHING",
         )
         .bind(user_id)
         .bind(role_id)
-        .bind(team_id)
+        .bind(group_id)
         .execute(&self.pool)
         .await?;
         return Ok(());
     }
 
-    /// Remove a role grant; not granted → no-op.
+    /// Remove a role grant from a user; not granted → no-op.
     pub async fn revoke_role(
         &self,
         user_id: &Uuid,
         role_id: &Uuid,
-        team_id: Option<&Uuid>,
+        group_id: Option<&Uuid>,
     ) -> Result<(), DbError> {
         sqlx::query(
             "DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2
-             AND team_id IS NOT DISTINCT FROM $3",
+             AND group_id IS NOT DISTINCT FROM $3",
         )
         .bind(user_id)
         .bind(role_id)
-        .bind(team_id)
+        .bind(group_id)
         .execute(&self.pool)
         .await?;
         return Ok(());
     }
 
+    /// Assign a role to a group; every member inherits it. Already assigned
+    /// → no-op.
+    pub async fn assign_role_to_group(
+        &self,
+        group_id: &Uuid,
+        role_id: &Uuid,
+    ) -> Result<(), DbError> {
+        sqlx::query(
+            "INSERT INTO group_roles (group_id, role_id) VALUES ($1, $2)
+             ON CONFLICT DO NOTHING",
+        )
+        .bind(group_id)
+        .bind(role_id)
+        .execute(&self.pool)
+        .await?;
+        return Ok(());
+    }
+
+    /// Remove a role from a group; not assigned → no-op.
+    pub async fn revoke_role_from_group(
+        &self,
+        group_id: &Uuid,
+        role_id: &Uuid,
+    ) -> Result<(), DbError> {
+        sqlx::query("DELETE FROM group_roles WHERE group_id = $1 AND role_id = $2")
+            .bind(group_id)
+            .bind(role_id)
+            .execute(&self.pool)
+            .await?;
+        return Ok(());
+    }
+
+    /// The roles a group holds, ordered by key.
+    pub async fn list_group_roles(&self, group_id: &Uuid) -> Result<Vec<Role>, DbError> {
+        let rows = sqlx::query_as::<_, Role>(
+            "SELECT r.id, r.key, r.name, r.description
+             FROM roles r
+             JOIN group_roles gr ON gr.role_id = r.id
+             WHERE gr.group_id = $1
+             ORDER BY r.key",
+        )
+        .bind(group_id)
+        .fetch_all(&self.pool)
+        .await?;
+        return Ok(rows);
+    }
+
     /// The full actor for a user: identity plus roles and permissions
-    /// expanded from every grant that applies — global grants always, and
-    /// team-scoped grants when `team_id` matches. `None` when the user does
-    /// not exist.
+    /// expanded from every grant that applies — the user's global grants
+    /// always, the user's group-scoped grants when `group_id` matches, and
+    /// every role held by a group the user belongs to. `None` when the
+    /// user does not exist.
     ///
     /// Status gating (rejecting `invited`/`disabled`) is the auth flow's
     /// job at sign-in; this loads whatever the database holds.
     pub async fn load_actor(
         &self,
         user_id: &Uuid,
-        team_id: Option<&Uuid>,
+        group_id: Option<&Uuid>,
     ) -> Result<Option<Actor>, DbError> {
         let user = sqlx::query_as::<_, crate::users::User>(
             "SELECT id, email, name, password_hash, status, created_at, updated_at
@@ -223,11 +273,19 @@ impl Db {
              LEFT JOIN role_permissions rp ON rp.role_id = r.id
              LEFT JOIN permissions p ON p.id = rp.permission_id
              WHERE ur.user_id = $1
-               AND (ur.team_id IS NULL OR ur.team_id = $2)
-             ORDER BY r.key, p.code",
+               AND (ur.group_id IS NULL OR ur.group_id = $2)
+             UNION
+             SELECT r.key AS role_key, p.code AS permission_code
+             FROM group_roles gr
+             JOIN group_members gm ON gm.group_id = gr.group_id
+             JOIN roles r ON r.id = gr.role_id
+             LEFT JOIN role_permissions rp ON rp.role_id = r.id
+             LEFT JOIN permissions p ON p.id = rp.permission_id
+             WHERE gm.user_id = $1
+             ORDER BY role_key, permission_code",
         )
         .bind(user_id)
-        .bind(team_id)
+        .bind(group_id)
         .fetch_all(&self.pool)
         .await?;
 
@@ -248,7 +306,7 @@ impl Db {
             email: user.email,
             roles,
             permissions,
-            team_id: team_id.map(|t| return t.to_string()),
+            team_id: group_id.map(|t| return t.to_string()),
         }));
     }
 }

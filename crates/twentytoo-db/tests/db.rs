@@ -10,7 +10,11 @@
 //! ```
 
 use chrono::{Duration, Utc};
+use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
+use twentytoo_core::AuditAction;
+use twentytoo_db::audit::NewAuditEntry;
+use twentytoo_db::sessions::SessionInfo;
 use twentytoo_db::users::UserStatus;
 use twentytoo_db::{Db, DbError};
 use uuid::Uuid;
@@ -129,9 +133,9 @@ async fn create_user_duplicate_email_conflicts() {
         return;
     };
     let email = unique_email("dup");
-    db.create_user(&email, "First", None).await.expect("create");
+    db.create_user(&email, "One", None).await.expect("create");
     let err = db
-        .create_user(&email, "Second", None)
+        .create_user(&email, "Two", None)
         .await
         .expect_err("duplicate");
     assert!(matches!(err, DbError::Conflict(_)), "got {err:?}");
@@ -142,7 +146,7 @@ async fn get_user_missing_is_none() {
     let Some(db) = connect_test_db().await else {
         return;
     };
-    let user = db.get_user(&Uuid::new_v4()).await.expect("query");
+    let user = db.get_user(&Uuid::new_v4()).await.expect("get");
     assert!(user.is_none());
 }
 
@@ -152,25 +156,18 @@ async fn set_password_and_status_persist() {
         return;
     };
     let user = db
-        .create_user(&unique_email("creds"), "Creds", None)
+        .create_user(&unique_email("persist"), "Persist", None)
         .await
         .expect("create");
-
-    db.set_user_password(&user.id, "hash-v1")
+    db.set_user_password(&user.id, "hash-1")
         .await
-        .expect("set password");
-    db.set_user_status(&user.id, UserStatus::Invited)
-        .await
-        .expect("set status");
-    let reloaded = db.get_user(&user.id).await.expect("get").expect("found");
-    assert_eq!(reloaded.password_hash.as_deref(), Some("hash-v1"));
-    assert_eq!(reloaded.status, UserStatus::Invited);
-
+        .expect("password");
     db.set_user_status(&user.id, UserStatus::Disabled)
         .await
-        .expect("set status");
-    let reloaded = db.get_user(&user.id).await.expect("get").expect("found");
-    assert_eq!(reloaded.status, UserStatus::Disabled);
+        .expect("status");
+    let loaded = db.get_user(&user.id).await.expect("get").expect("found");
+    assert_eq!(loaded.password_hash.as_deref(), Some("hash-1"));
+    assert_eq!(loaded.status, UserStatus::Disabled);
 }
 
 #[tokio::test]
@@ -190,7 +187,7 @@ async fn set_password_missing_user_not_found() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn session_roundtrip_with_team_and_metadata() {
+async fn session_roundtrip_with_group_and_tracking() {
     let Some(db) = connect_test_db().await else {
         return;
     };
@@ -198,36 +195,49 @@ async fn session_roundtrip_with_team_and_metadata() {
         .create_user(&unique_email("session"), "Session", None)
         .await
         .expect("create user");
-    let team = db
-        .create_team(
-            "Sessions Team",
+    let group = db
+        .create_group(
+            "Sessions Group",
             &format!("sessions-{}", Uuid::new_v4().simple()),
         )
         .await
-        .expect("create team");
+        .expect("create group");
 
     let token = format!("tok-{}", Uuid::new_v4().simple());
     let expires = Utc::now() + Duration::hours(8);
+    let info = SessionInfo {
+        user_agent: Some("test-agent".to_string()),
+        ip: Some("127.0.0.1".to_string()),
+        referrer: Some("https://example.com/login".to_string()),
+        accept_language: Some("en-US,en;q=0.9".to_string()),
+        device: Some("Desktop".to_string()),
+        os: Some("macOS".to_string()),
+        browser: Some("Chrome".to_string()),
+        metadata: json!({"correlation_id": "abc123"}),
+    };
     let session = db
-        .create_session(
-            &token,
-            &user.id,
-            Some(&team.id),
-            expires,
-            Some("test-agent"),
-            Some("127.0.0.1"),
-        )
+        .create_session(&token, &user.id, Some(&group.id), expires, &info)
         .await
         .expect("create session");
-    assert_eq!(session.team_id, Some(team.id));
+    assert_eq!(session.group_id, Some(group.id));
     assert_eq!(session.expires_at, expires);
     assert_eq!(session.user_agent.as_deref(), Some("test-agent"));
     assert_eq!(session.ip.as_deref(), Some("127.0.0.1"));
+    assert_eq!(
+        session.referrer.as_deref(),
+        Some("https://example.com/login")
+    );
+    assert_eq!(session.device.as_deref(), Some("Desktop"));
+    assert_eq!(session.os.as_deref(), Some("macOS"));
+    assert_eq!(session.browser.as_deref(), Some("Chrome"));
+    assert_eq!(session.metadata["correlation_id"].as_str(), Some("abc123"));
     assert!(session.last_seen_at.is_none());
 
     let loaded = db.get_session(&token).await.expect("get").expect("found");
     assert_eq!(loaded.user_id, user.id);
-    assert_eq!(loaded.team_id, Some(team.id));
+    assert_eq!(loaded.group_id, Some(group.id));
+    assert_eq!(loaded.accept_language.as_deref(), Some("en-US,en;q=0.9"));
+    assert_eq!(loaded.metadata["correlation_id"].as_str(), Some("abc123"));
 
     db.touch_session(&token).await.expect("touch");
     let touched = db.get_session(&token).await.expect("get").expect("found");
@@ -253,8 +263,7 @@ async fn expired_sessions_are_invisible_and_cleanable() {
         &user.id,
         None,
         Utc::now() - Duration::minutes(1),
-        None,
-        None,
+        &SessionInfo::default(),
     )
     .await
     .expect("create expired");
@@ -263,8 +272,7 @@ async fn expired_sessions_are_invisible_and_cleanable() {
         &user.id,
         None,
         Utc::now() + Duration::hours(1),
-        None,
-        None,
+        &SessionInfo::default(),
     )
     .await
     .expect("create fresh");
@@ -292,8 +300,7 @@ async fn delete_session_removes_token() {
         &user.id,
         None,
         Utc::now() + Duration::hours(1),
-        None,
-        None,
+        &SessionInfo::default(),
     )
     .await
     .expect("create");
@@ -305,50 +312,81 @@ async fn delete_session_removes_token() {
 }
 
 // ---------------------------------------------------------------------------
-// Teams
+// Groups
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn team_roundtrip_and_membership() {
+async fn group_roundtrip_and_membership() {
     let Some(db) = connect_test_db().await else {
         return;
     };
     let user = db
-        .create_user(&unique_email("team"), "Teammate", None)
+        .create_user(&unique_email("group"), "Groupmate", None)
         .await
         .expect("create user");
-    let slug = format!("team-{}", Uuid::new_v4().simple());
-    let team = db.create_team("Ops", &slug).await.expect("create team");
-    assert_eq!(team.slug, slug);
+    let slug = format!("group-{}", Uuid::new_v4().simple());
+    let group = db.create_group("Ops", &slug).await.expect("create group");
+    assert_eq!(group.slug, slug);
 
-    let loaded = db.get_team(&team.id).await.expect("get").expect("found");
+    let loaded = db.get_group(&group.id).await.expect("get").expect("found");
     assert_eq!(loaded.name, "Ops");
 
-    db.add_member(&team.id, &user.id).await.expect("add");
-    db.add_member(&team.id, &user.id)
+    db.add_member(&group.id, &user.id).await.expect("add");
+    db.add_member(&group.id, &user.id)
         .await
         .expect("add again is no-op");
-    let teams = db.list_teams_for_user(&user.id).await.expect("list");
-    assert_eq!(teams.len(), 1);
-    assert_eq!(teams[0].id, team.id);
+    let groups = db.list_groups_for_user(&user.id).await.expect("list");
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].id, group.id);
 
-    db.remove_member(&team.id, &user.id).await.expect("remove");
-    db.remove_member(&team.id, &user.id)
+    let members = db.list_group_members(&group.id).await.expect("members");
+    assert_eq!(members.len(), 1);
+    assert_eq!(members[0].id, user.id);
+
+    db.remove_member(&group.id, &user.id).await.expect("remove");
+    db.remove_member(&group.id, &user.id)
         .await
         .expect("remove again is no-op");
-    let teams = db.list_teams_for_user(&user.id).await.expect("list");
-    assert!(teams.is_empty());
+    let groups = db.list_groups_for_user(&user.id).await.expect("list");
+    assert!(groups.is_empty());
 }
 
 #[tokio::test]
-async fn duplicate_team_slug_conflicts() {
+async fn duplicate_group_slug_conflicts() {
     let Some(db) = connect_test_db().await else {
         return;
     };
     let slug = format!("slug-{}", Uuid::new_v4().simple());
-    db.create_team("One", &slug).await.expect("create");
-    let err = db.create_team("Two", &slug).await.expect_err("duplicate");
+    db.create_group("One", &slug).await.expect("create");
+    let err = db.create_group("Two", &slug).await.expect_err("duplicate");
     assert!(matches!(err, DbError::Conflict(_)), "got {err:?}");
+}
+
+#[tokio::test]
+async fn user_belongs_to_multiple_groups() {
+    let Some(db) = connect_test_db().await else {
+        return;
+    };
+    let user = db
+        .create_user(&unique_email("multi-member"), "Multi", None)
+        .await
+        .expect("create user");
+    let alpha = db
+        .create_group("Alpha", &format!("ma-{}", Uuid::new_v4().simple()))
+        .await
+        .expect("alpha");
+    let beta = db
+        .create_group("Beta", &format!("mb-{}", Uuid::new_v4().simple()))
+        .await
+        .expect("beta");
+    db.add_member(&alpha.id, &user.id).await.expect("add alpha");
+    db.add_member(&beta.id, &user.id).await.expect("add beta");
+
+    let groups = db.list_groups_for_user(&user.id).await.expect("list");
+    assert_eq!(groups.len(), 2);
+    let mut names: Vec<&str> = groups.iter().map(|g| return g.name.as_str()).collect();
+    names.sort();
+    assert_eq!(names, vec!["Alpha", "Beta"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -464,7 +502,7 @@ async fn actor_loads_roles_and_expanded_permissions() {
 }
 
 #[tokio::test]
-async fn actor_loads_team_scoped_roles_only_in_that_team() {
+async fn actor_loads_group_scoped_roles_only_in_that_group() {
     let Some(db) = connect_test_db().await else {
         return;
     };
@@ -473,14 +511,14 @@ async fn actor_loads_team_scoped_roles_only_in_that_team() {
         .create_user(&unique_email("scoped"), "Scoped", None)
         .await
         .expect("create user");
-    let team_a = db
-        .create_team("Team A", &format!("a-{}", Uuid::new_v4().simple()))
+    let group_a = db
+        .create_group("Group A", &format!("a-{}", Uuid::new_v4().simple()))
         .await
-        .expect("team a");
-    let team_b = db
-        .create_team("Team B", &format!("b-{}", Uuid::new_v4().simple()))
+        .expect("group a");
+    let group_b = db
+        .create_group("Group B", &format!("b-{}", Uuid::new_v4().simple()))
         .await
-        .expect("team b");
+        .expect("group b");
 
     let scoped_key = format!("store_manager.{s}");
     let global_key = format!("auditor.{s}");
@@ -510,14 +548,14 @@ async fn actor_loads_team_scoped_roles_only_in_that_team() {
         .await
         .expect("grant");
 
-    db.assign_role(&user.id, &scoped.id, Some(&team_a.id))
+    db.assign_role(&user.id, &scoped.id, Some(&group_a.id))
         .await
         .expect("scoped grant");
     db.assign_role(&user.id, &global.id, None)
         .await
         .expect("global grant");
 
-    // No team context → only the global role.
+    // No group context → only the global role.
     let actor = db
         .load_actor(&user.id, None)
         .await
@@ -527,9 +565,9 @@ async fn actor_loads_team_scoped_roles_only_in_that_team() {
     assert_eq!(actor.permissions, vec![view_code.clone()]);
     assert_eq!(actor.team_id, None);
 
-    // Team A context → scoped role applies, and its team_id is carried.
+    // Group A context → scoped role applies, and its group is carried.
     let actor = db
-        .load_actor(&user.id, Some(&team_a.id))
+        .load_actor(&user.id, Some(&group_a.id))
         .await
         .expect("load")
         .expect("user");
@@ -539,16 +577,127 @@ async fn actor_loads_team_scoped_roles_only_in_that_team() {
     let mut perms = actor.permissions.clone();
     perms.sort();
     assert_eq!(perms, vec![edit_code.clone(), view_code.clone()]);
-    assert_eq!(actor.team_id, Some(team_a.id.to_string()));
+    assert_eq!(actor.team_id, Some(group_a.id.to_string()));
 
-    // Team B context → the team-scoped grant does not apply.
+    // Group B context → the group-scoped grant does not apply.
     let actor = db
-        .load_actor(&user.id, Some(&team_b.id))
+        .load_actor(&user.id, Some(&group_b.id))
         .await
         .expect("load")
         .expect("user");
     assert_eq!(actor.roles, vec![global_key.clone()]);
-    assert_eq!(actor.team_id, Some(team_b.id.to_string()));
+    assert_eq!(actor.team_id, Some(group_b.id.to_string()));
+}
+
+#[tokio::test]
+async fn group_roles_are_inherited_by_members() {
+    let Some(db) = connect_test_db().await else {
+        return;
+    };
+    let s = run_suffix();
+    let user = db
+        .create_user(&unique_email("grole"), "Member", None)
+        .await
+        .expect("user");
+    let group = db
+        .create_group("Ops", &format!("g-{}", Uuid::new_v4().simple()))
+        .await
+        .expect("group");
+    let role_key = format!("operator.{s}");
+    let role = db
+        .create_role(&role_key, "Operator", "")
+        .await
+        .expect("role");
+    let res = format!("g{}", Uuid::new_v4().simple());
+    let code = format!("{res}.edit");
+    let perm = db.create_permission(&code, "").await.expect("permission");
+    db.grant_permission(&role.id, &perm.id)
+        .await
+        .expect("grant");
+
+    db.assign_role_to_group(&group.id, &role.id)
+        .await
+        .expect("assign to group");
+    db.assign_role_to_group(&group.id, &role.id)
+        .await
+        .expect("assign again is no-op");
+    let group_roles = db.list_group_roles(&group.id).await.expect("list");
+    assert_eq!(group_roles.len(), 1);
+    assert_eq!(group_roles[0].key, role_key);
+
+    // Not yet a member → no inheritance.
+    let actor = db
+        .load_actor(&user.id, None)
+        .await
+        .expect("load")
+        .expect("user");
+    assert!(actor.roles.is_empty());
+
+    db.add_member(&group.id, &user.id)
+        .await
+        .expect("add member");
+    let actor = db
+        .load_actor(&user.id, None)
+        .await
+        .expect("load")
+        .expect("user");
+    assert_eq!(actor.roles, vec![role_key.clone()]);
+    assert_eq!(actor.permissions, vec![code.clone()]);
+
+    db.revoke_role_from_group(&group.id, &role.id)
+        .await
+        .expect("revoke");
+    let actor = db
+        .load_actor(&user.id, None)
+        .await
+        .expect("load")
+        .expect("user");
+    assert!(actor.roles.is_empty());
+}
+
+#[tokio::test]
+async fn member_in_multiple_groups_gets_union_of_roles() {
+    let Some(db) = connect_test_db().await else {
+        return;
+    };
+    let s = run_suffix();
+    let user = db
+        .create_user(&unique_email("multi"), "Multi", None)
+        .await
+        .expect("user");
+    let group_a = db
+        .create_group("Group A", &format!("ga-{}", Uuid::new_v4().simple()))
+        .await
+        .expect("group a");
+    let group_b = db
+        .create_group("Group B", &format!("gb-{}", Uuid::new_v4().simple()))
+        .await
+        .expect("group b");
+    let role_a = db
+        .create_role(&format!("viewer.{s}"), "Viewer", "")
+        .await
+        .expect("role a");
+    let role_b = db
+        .create_role(&format!("editor.{s}"), "Editor", "")
+        .await
+        .expect("role b");
+    db.assign_role_to_group(&group_a.id, &role_a.id)
+        .await
+        .expect("assign a");
+    db.assign_role_to_group(&group_b.id, &role_b.id)
+        .await
+        .expect("assign b");
+    db.add_member(&group_a.id, &user.id).await.expect("add a");
+    db.add_member(&group_b.id, &user.id).await.expect("add b");
+
+    let actor = db
+        .load_actor(&user.id, None)
+        .await
+        .expect("load")
+        .expect("user");
+    let mut roles = actor.roles.clone();
+    roles.sort();
+    assert_eq!(roles, vec![format!("editor.{s}"), format!("viewer.{s}")]);
 }
 
 #[tokio::test]
@@ -558,4 +707,97 @@ async fn actor_missing_user_is_none() {
     };
     let actor = db.load_actor(&Uuid::new_v4(), None).await.expect("load");
     assert!(actor.is_none());
+}
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn audit_entries_roundtrip_and_query() {
+    let Some(db) = connect_test_db().await else {
+        return;
+    };
+    let admin = db
+        .create_user(&unique_email("audit-admin"), "Admin", None)
+        .await
+        .expect("admin user");
+    let other = db
+        .create_user(&unique_email("audit-other"), "Other", None)
+        .await
+        .expect("other user");
+    let record_id = Uuid::new_v4().to_string();
+
+    let created = db
+        .record_audit(&NewAuditEntry {
+            actor_id: admin.id.to_string(),
+            actor_email: admin.email.clone(),
+            action: AuditAction::Create,
+            resource_key: "stores".to_string(),
+            record_id: record_id.clone(),
+            before: None,
+            after: Some(json!({"name": "Downtown"})),
+            ip: Some("10.0.0.1".to_string()),
+        })
+        .await
+        .expect("record create");
+    assert_eq!(created.action, AuditAction::Create);
+    assert_eq!(created.actor_email, admin.email);
+    assert!(created.id != Uuid::nil());
+
+    db.record_audit(&NewAuditEntry {
+        actor_id: admin.id.to_string(),
+        actor_email: admin.email.clone(),
+        action: AuditAction::Update,
+        resource_key: "stores".to_string(),
+        record_id: record_id.clone(),
+        before: Some(json!({"name": "Downtown"})),
+        after: Some(json!({"name": "Uptown"})),
+        ip: None,
+    })
+    .await
+    .expect("record update");
+
+    // A different actor on a different record.
+    db.record_audit(&NewAuditEntry {
+        actor_id: other.id.to_string(),
+        actor_email: other.email.clone(),
+        action: AuditAction::Delete,
+        resource_key: "orders".to_string(),
+        record_id: Uuid::new_v4().to_string(),
+        before: Some(json!({"id": "o1"})),
+        after: None,
+        ip: None,
+    })
+    .await
+    .expect("record delete");
+
+    // Per-record: newest first, scoped to the record.
+    let history = db
+        .list_audit_for_record("stores", &record_id)
+        .await
+        .expect("list record");
+    assert_eq!(history.len(), 2);
+    assert_eq!(history[0].action, AuditAction::Update);
+    assert_eq!(history[1].action, AuditAction::Create);
+    assert_eq!(history[1].before, None);
+    assert_eq!(history[1].after, Some(json!({"name": "Downtown"})));
+    assert_eq!(history[1].ip.as_deref(), Some("10.0.0.1"));
+
+    // Per-actor: only that actor's entries.
+    let admin_history = db
+        .list_audit_for_actor(&admin.id.to_string())
+        .await
+        .expect("list admin");
+    assert_eq!(admin_history.len(), 2);
+    let other_history = db
+        .list_audit_for_actor(&other.id.to_string())
+        .await
+        .expect("list other");
+    assert_eq!(other_history.len(), 1);
+    assert_eq!(other_history[0].action, AuditAction::Delete);
+
+    // Global: sees everyone.
+    let all = db.list_audit(100).await.expect("list all");
+    assert!(all.len() >= 3);
 }
