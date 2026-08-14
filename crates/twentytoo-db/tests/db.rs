@@ -712,7 +712,7 @@ async fn actor_missing_user_is_none() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn audit_entries_roundtrip_and_query() {
+async fn audit_events_roundtrip_and_query() {
     let Some(db) = connect_test_db().await else {
         return;
     };
@@ -739,9 +739,16 @@ async fn audit_entries_roundtrip_and_query() {
         })
         .await
         .expect("record create");
-    assert_eq!(created.action, AuditAction::Create);
-    assert_eq!(created.actor_email, admin.email);
+    // The stored event carries the inapp_events envelope.
     assert!(created.id != Uuid::nil());
+    assert_eq!(created.event_type, "stores.create");
+    assert_eq!(created.actor.kind, "user");
+    assert_eq!(created.actor.properties["email"], json!(admin.email));
+    assert_eq!(created.target.kind, "stores");
+    assert_eq!(created.target.properties["id"], json!(record_id));
+    assert_eq!(created.context["client_ip"], json!("10.0.0.1"));
+    assert!(created.properties.get("before").is_none());
+    assert_eq!(created.properties["after"], json!({"name": "Downtown"}));
 
     db.record_audit(&NewAuditEntry {
         actor_id: admin.id.to_string(),
@@ -776,11 +783,11 @@ async fn audit_entries_roundtrip_and_query() {
         .await
         .expect("list record");
     assert_eq!(history.len(), 2);
-    assert_eq!(history[0].action, AuditAction::Update);
-    assert_eq!(history[1].action, AuditAction::Create);
-    assert_eq!(history[1].before, None);
-    assert_eq!(history[1].after, Some(json!({"name": "Downtown"})));
-    assert_eq!(history[1].ip.as_deref(), Some("10.0.0.1"));
+    assert_eq!(history[0].event_type, "stores.update");
+    assert_eq!(history[1].event_type, "stores.create");
+    assert!(history[1].properties.get("before").is_none());
+    assert_eq!(history[1].properties["after"], json!({"name": "Downtown"}));
+    assert_eq!(history[1].context["client_ip"], json!("10.0.0.1"));
 
     // Per-actor: only that actor's entries.
     let admin_history = db
@@ -793,7 +800,7 @@ async fn audit_entries_roundtrip_and_query() {
         .await
         .expect("list other");
     assert_eq!(other_history.len(), 1);
-    assert_eq!(other_history[0].action, AuditAction::Delete);
+    assert_eq!(other_history[0].event_type, "orders.delete");
 
     // Global: sees everyone.
     let all = db.list_audit(100).await.expect("list all");

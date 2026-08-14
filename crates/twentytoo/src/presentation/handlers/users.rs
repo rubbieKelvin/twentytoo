@@ -1,6 +1,6 @@
 //! The Users area: the framework-owned user management screens behind the
 //! auth service. Every route gates on the actor's permissions and runs
-//! against `users`/`audit_log` through the auth service's database handle;
+//! against `users`/`inapp_events` through the auth service's database handle;
 //! the routes only exist when auth is configured.
 
 use axum::extract::{Path, State};

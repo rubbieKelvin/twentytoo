@@ -3,7 +3,8 @@
 //! Owns the schema (`migrations/`, embedded via [`MIGRATOR`]) and a typed
 //! access layer for the framework-owned tables: users and sessions (auth),
 //! groups and membership (groupings), roles and permissions (RBAC, see
-//! [`crate::queries::access::load_actor`]), and the append-only audit log.
+//! [`crate::queries::access::load_actor`]), and the audit trail — the
+//! append-only `inapp_events` event stream ([`crate::queries::audit`]).
 //!
 //! Queries are runtime-bound (`sqlx::query_as`), so the crate compiles and
 //! its unit tests run without a live database; integration tests live in

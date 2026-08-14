@@ -25,7 +25,7 @@ pub use crate::action::{Action, ActionError, ActionField, ActionResult, ActionSc
 pub use crate::actor::Actor;
 pub use crate::adapter::{DataAdapter, DataError, TxAdapter};
 pub use crate::aggregation::{Aggregation, AggregationResult, Bucket, GroupBy, Interval, Measure};
-pub use crate::audit::{AuditAction, AuditEntry};
+pub use crate::audit::{AuditAction, AuditEvent, EventResource};
 pub use crate::capabilities::{
     AggregationCapability, Capabilities, ConcurrencySupport, PaginationModes, WriteCapability,
 };
@@ -47,7 +47,7 @@ pub mod prelude {
     pub use crate::aggregation::{
         Aggregation, AggregationResult, Bucket, GroupBy, Interval, Measure,
     };
-    pub use crate::audit::{AuditAction, AuditEntry};
+    pub use crate::audit::{AuditAction, AuditEvent, EventResource};
     pub use crate::capabilities::{
         AggregationCapability, Capabilities, ConcurrencySupport, PaginationModes, WriteCapability,
     };

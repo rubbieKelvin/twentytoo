@@ -16,7 +16,7 @@ The measure of success: standing up a new internal tool should require **domain 
 
 ## 2. What it is and what it isn't
 
-**It is** a server-rendered, framework-agnostic-in-spec internal-tools dashboard framework: teams declare resources and the framework generates permissioned CRUD views. It ships as a **library**, not a template — you compose it into your app; upstream improvements are a dependency bump away.
+**It is** a server-rendered, internal-tools dashboard framework: teams declare resources and the framework generates permissioned CRUD views. It ships as a **library**, not a template. you compose it into your app; upstream improvements are a dependency bump away.
 
 **It is not:**
 
@@ -44,9 +44,9 @@ A three-crate Cargo workspace (`Cargo.toml`, resolver 3, edition 2024, MSRV 1.94
 
 | Crate | Owns | Runtime |
 | --- | --- | --- |
-| `crates/twentytoo-core` | The contract: traits and types only — `Resource`, `Field`, `DataAdapter`, `Policy`, `Actor`, `Action`/`Aggregation`/`AuditEntry` contract types, the query/write/capability models, and the `InMemoryAdapter` reference implementation | No tokio, no HTTP, no IO |
+| `crates/twentytoo-core` | The contract: traits and types only — `Resource`, `Field`, `DataAdapter`, `Policy`, `Actor`, `Action`/`Aggregation`/`AuditEvent` contract types, the query/write/capability models, and the `InMemoryAdapter` reference implementation | No tokio, no HTTP, no IO |
 | `crates/twentytoo` | The HTTP layer: the builder, generic axum handlers, the MiniJinja template engine, auth, middleware, view models, errors | axum + tokio |
-| `crates/twentytoo-db` | The PostgreSQL layer: the embedded schema and typed access for the framework-owned tables (users, sessions, login tokens, groups, roles, permissions, audit log) | sqlx 0.8 |
+| `crates/twentytoo-db` | The PostgreSQL layer: the embedded schema and typed access for the framework-owned tables (users, sessions, login tokens, groups, roles, permissions, the `inapp_events` audit stream) | sqlx 0.8 |
 
 Data flow:
 
@@ -153,9 +153,9 @@ A complete HashMap-backed engine that proves the contract and powers the demo an
 
 The contract types exist (`Action<E>` with `execute`, `ActionScope` `Record`/`Bulk`/`Standalone`, `ActionField`, `ActionResult`, `ActionError`) and `Resource::actions()` returns them, but **no HTTP surface renders or runs them yet** (§11).
 
-### 5.12 Audit entries — contract only
+### 5.12 Audit events — contract only
 
-`AuditEntry` (id, actor id + email snapshots, action, resource key, record id, before/after JSON, IP, timestamp) and `AuditAction` (`Create`, `Update`, `Delete`, `Execute`, `Login`, `Logout`, `Impersonate`) are the core shape of the audit trail. The DB layer stores them; which writes produce them today is §6.5.
+The audit trail is an append-only event stream (§6.5). `AuditEvent` (id, timestamp, `resource.action` type string, `actor`/`target` point-in-time `EventResource` snapshot envelopes, type-specific `properties` JSON, request `context` JSON) plus `AuditAction` (`Create`, `Update`, `Delete`, `Execute`, `Login`, `Logout`, `Impersonate`) — the closed writer-side union the `type` suffix draws from — are the core shape of the audit trail. The DB layer stores them; which writes produce them today is §6.5.
 
 ## 6. Identity: RBAC, auth, and audit
 
@@ -192,7 +192,7 @@ When auth is configured, the framework mounts its own permission-gated `/users` 
 
 ### 6.5 The audit log
 
-The `audit_log` table is **append-only and immutable by design** — the access layer only inserts and selects; actor id/email are denormalized snapshots so entries survive user deletion. What writes it today: the login flow (account self-creation, logins), logout, and the `/users` area's mutations. **Generic resource mutations do not write audit entries yet** — that wiring is a deferred slice (§11); the `AuditEntry`/`AuditAction` contract and the table are already in place.
+`inapp_events` is the canonical, append-only event stream: `type` is an **open** `resource.action` discriminator (no `CHECK` set — types evolve additively), `actor` and `target` are point-in-time resource envelopes (`{"type": <kind>, "properties": {…}}`) so entries survive actor deletion and record renames, `properties` carries the type-specific payload (before/after record state for mutations), and `context` carries request metadata (client IP). Scoped reads filter the envelopes directly (`target` for per-record history, `actor` for per-actor history); a dedicated audit junction (permissioned read surface with denormalized sort keys) is a later slice. The access layer only inserts and selects; events are immutable. What writes it today: the login flow (account self-creation, logins), logout, and the `/users` area's mutations. **Generic resource mutations do not write audit entries yet** — that wiring is a deferred slice (§11); the `AuditEvent`/`AuditAction` contract and the table are already in place.
 
 ## 7. The HTTP layer (`twentytoo`)
 
@@ -281,7 +281,7 @@ Built-in templates carry htmx attributes: sortable headers, the filter form, the
 
 PostgreSQL via sqlx 0.8, owning the framework's schema only:
 
-- **Migrations** (`0001_users` … `0006_login_tokens`), embedded via `MIGRATOR` and applied by `Db::migrate()`: users, groups + group membership, sessions, roles/permissions + grant tables, the audit log, login tokens.
+- **Migrations** (`0001_users` … `0006_login_tokens`), embedded via `MIGRATOR` and applied by `Db::migrate()`: users, groups + group membership, sessions, roles/permissions + grant tables, the `inapp_events` audit stream, login tokens.
 - **A typed access layer** on the `Db` pool handle: `queries/users`, `queries/groups`, `queries/sessions`, `queries/login_tokens`, `queries/access` (permissions, roles, grants, and `load_actor`), `queries/audit` — with row shapes in `entities/`.
 - Queries are **runtime-bound** (`sqlx::query_as`), so the crate compiles and unit-tests with no live database; integration tests run against `DATABASE_URL` and skip when it's unset.
 - `DbError` mirrors the hand-rolled error convention.

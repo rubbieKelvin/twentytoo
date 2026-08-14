@@ -231,37 +231,35 @@ async fn login(app: &Router<()>, email: &str, password: &str) -> String {
     return session_cookie(&headers);
 }
 
-/// The number of audit rows for `resource` + `action`, optionally scoped to
-/// an actor email.
+/// The number of audit events with type `resource.action`, optionally
+/// scoped to an actor email (read from the actor snapshot envelope).
 async fn audit_count(db: &Db, resource: &str, action: &str, actor_email: Option<&str>) -> i64 {
+    let event_type = format!("{resource}.{action}");
     return match actor_email {
-        Some(email) => {
-            sqlx::query_scalar::<_, i64>(
-                "SELECT COUNT(*) FROM audit_log WHERE resource = $1 AND action = $2 AND actor_email = $3",
-            )
-            .bind(resource)
-            .bind(action)
-            .bind(email)
-            .fetch_one(db.pool())
-            .await
-            .expect("audit count")
-        }
-        None => {
-            sqlx::query_scalar::<_, i64>(
-                "SELECT COUNT(*) FROM audit_log WHERE resource = $1 AND action = $2",
-            )
-            .bind(resource)
-            .bind(action)
-            .fetch_one(db.pool())
-            .await
-            .expect("audit count")
-        }
+        Some(email) => sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*)
+             FROM inapp_events
+             WHERE target ->> 'type' = $1 AND type = $2
+               AND actor -> 'properties' ->> 'email' = $3",
+        )
+        .bind(resource)
+        .bind(&event_type)
+        .bind(email)
+        .fetch_one(db.pool())
+        .await
+        .expect("audit count"),
+        None => sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*)
+             FROM inapp_events
+             WHERE target ->> 'type' = $1 AND type = $2",
+        )
+        .bind(resource)
+        .bind(&event_type)
+        .fetch_one(db.pool())
+        .await
+        .expect("audit count"),
     };
 }
-
-// ---------------------------------------------------------------------------
-// The flow
-// ---------------------------------------------------------------------------
 
 #[tokio::test]
 async fn unauthenticated_get_redirects_to_login() {

@@ -1,39 +1,38 @@
-//! Audit queries: the append-only trail of mutations and actions
-//! (`00` §6.5).
+//! Audit queries: the append-only trail of domain events (`00` §6.5).
 //!
-//! Every entry records the actor (id + email snapshots), the affected
-//! resource + record, the before/after state, and the request IP. The
-//! access layer only inserts and selects — entries are immutable; retention
-//! is a storage-layer concern, not an application one. The write shape
-//! lives in [`crate::entities::audit`].
+//! Events live in `inapp_events` — the canonical envelope (`type`, `actor`,
+//! `target`, `properties`, `context`). The access layer only inserts and
+//! selects — events are immutable; retention is a storage-layer concern,
+//! not an application one. Scoped reads filter the envelopes directly
+//! (`target` for per-record history, `actor` for per-actor history); a
+//! dedicated audit-junction table for permissioned reads is a later
+//! slice. The write shape lives in [`crate::entities::audit`].
 
 use chrono::{DateTime, Utc};
-use serde_json::Value;
+use serde_json::{Map, Value, json};
 use sqlx::FromRow;
-use twentytoo_core::{AuditAction, AuditEntry};
+use twentytoo_core::{AuditAction, AuditEvent, EventResource};
 use uuid::Uuid;
 
 use crate::Db;
 use crate::entities::NewAuditEntry;
 use crate::error::DbError;
 
-/// One stored row, before the `action` text is mapped to [`AuditAction`].
+/// One `inapp_events` row, before the jsonb columns are mapped to the typed
+/// [`AuditEvent`] envelope.
 #[derive(FromRow)]
-struct AuditRow {
+struct EventRow {
     id: Uuid,
-    actor_id: String,
-    actor_email: String,
-    action: String,
-    resource: String,
-    resource_id: String,
-    before: Option<Value>,
-    after: Option<Value>,
-    ip: Option<String>,
-    created_at: DateTime<Utc>,
+    timestamp: DateTime<Utc>,
+    #[sqlx(rename = "type")]
+    event_type: String,
+    actor: Value,
+    target: Value,
+    properties: Value,
+    context: Value,
 }
 
-/// The stored text for an [`AuditAction`] (mirrors the `audit_log.action`
-/// `CHECK` constraint).
+/// The stored text for an [`AuditAction`] (the `resource.action` suffix).
 fn action_to_str(action: &AuditAction) -> &'static str {
     return match action {
         AuditAction::Create => "create",
@@ -46,83 +45,97 @@ fn action_to_str(action: &AuditAction) -> &'static str {
     };
 }
 
-/// Parse a stored `action` text back into an [`AuditAction`]. The column's
-/// `CHECK` constraint makes `None` unreachable in practice.
-fn action_from_str(s: &str) -> Option<AuditAction> {
-    return match s {
-        "create" => Some(AuditAction::Create),
-        "update" => Some(AuditAction::Update),
-        "delete" => Some(AuditAction::Delete),
-        "execute" => Some(AuditAction::Execute),
-        "login" => Some(AuditAction::Login),
-        "logout" => Some(AuditAction::Logout),
-        "impersonate" => Some(AuditAction::Impersonate),
-        _ => None,
-    };
+/// Map a stored jsonb envelope (`{"type": …, "properties": …}`) into an
+/// [`EventResource`]. The writer guarantees the shape, so a mismatch is
+/// a data-layer bug, not a parse error to recover from.
+fn resource_from_json(v: &Value) -> Result<EventResource, DbError> {
+    let kind = v.get("type").and_then(Value::as_str).ok_or_else(|| {
+        return DbError::Internal(sqlx::Error::Decode(
+            "inapp_events envelope missing 'type'".into(),
+        ));
+    })?;
+    let properties = v.get("properties").cloned().ok_or_else(|| {
+        return DbError::Internal(sqlx::Error::Decode(
+            "inapp_events envelope missing 'properties'".into(),
+        ));
+    })?;
+    return Ok(EventResource {
+        kind: kind.to_string(),
+        properties,
+    });
 }
 
-impl AuditRow {
-    /// Map the stored `action` text into an [`AuditEntry`].
-    fn into_entry(self) -> Result<AuditEntry, DbError> {
-        let action = action_from_str(&self.action).ok_or_else(|| {
-            return DbError::Internal(sqlx::Error::Decode(
-                "audit action outside the CHECK set".into(),
-            ));
-        })?;
-        return Ok(AuditEntry {
+impl EventRow {
+    /// Map the stored row into an [`AuditEvent`].
+    fn into_event(self) -> Result<AuditEvent, DbError> {
+        let actor = resource_from_json(&self.actor)?;
+        let target = resource_from_json(&self.target)?;
+        return Ok(AuditEvent {
             id: self.id,
-            actor_id: self.actor_id,
-            actor_email: self.actor_email,
-            action,
-            resource_key: self.resource,
-            record_id: self.resource_id,
-            before: self.before,
-            after: self.after,
-            ip: self.ip,
-            created_at: self.created_at,
+            timestamp: self.timestamp,
+            event_type: self.event_type,
+            actor,
+            target,
+            properties: self.properties,
+            context: self.context,
         });
     }
 }
 
 impl Db {
-    /// Append one audit entry. Returns the stored row with its id and
-    /// timestamp. Entries are append-only: there is no update or delete.
-    pub async fn record_audit(&self, entry: &NewAuditEntry) -> Result<AuditEntry, DbError> {
-        let row = sqlx::query_as::<_, AuditRow>(
-            "INSERT INTO audit_log
-                 (actor_id, actor_email, action, resource, resource_id, before, after, ip)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             RETURNING id, actor_id, actor_email, action, resource, resource_id,
-                       before, after, ip, created_at",
+    /// Append one event to the audit trail and return the stored event
+    /// (with its id and timestamp). Append-only: there is no update or
+    /// delete.
+    pub async fn record_audit(&self, entry: &NewAuditEntry) -> Result<AuditEvent, DbError> {
+        let event_type = format!("{}.{}", entry.resource, action_to_str(&entry.action));
+        let actor = json!({
+            "type": "user",
+            "properties": {"id": entry.actor_id, "email": entry.actor_email},
+        });
+        let target = json!({
+            "type": entry.resource,
+            "properties": {"id": entry.resource_id},
+        });
+        let mut properties = Map::new();
+        if let Some(before) = &entry.before {
+            properties.insert("before".to_string(), before.clone());
+        }
+        if let Some(after) = &entry.after {
+            properties.insert("after".to_string(), after.clone());
+        }
+        let context = match &entry.ip {
+            Some(ip) => json!({"client_ip": ip}),
+            None => json!({}),
+        };
+
+        let row = sqlx::query_as::<_, EventRow>(
+            "INSERT INTO inapp_events (type, actor, target, properties, context)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, timestamp, type, actor, target, properties, context",
         )
-        .bind(&entry.actor_id)
-        .bind(&entry.actor_email)
-        .bind(action_to_str(&entry.action))
-        .bind(&entry.resource)
-        .bind(&entry.resource_id)
-        .bind(&entry.before)
-        .bind(&entry.after)
-        .bind(&entry.ip)
+        .bind(&event_type)
+        .bind(&actor)
+        .bind(&target)
+        .bind(Value::Object(properties))
+        .bind(&context)
         .fetch_one(&self.pool)
         .await?;
-        return row.into_entry();
+        return row.into_event();
     }
 
-    /// The most recent `limit` audit entries across every resource, newest
-    /// first.
-    pub async fn list_audit(&self, limit: i64) -> Result<Vec<AuditEntry>, DbError> {
-        let rows = sqlx::query_as::<_, AuditRow>(
-            "SELECT id, actor_id, actor_email, action, resource, resource_id,
-                    before, after, ip, created_at
-
-             FROM audit_log
-             ORDER BY created_at DESC, id DESC
+    /// The most recent `limit` audit events across every resource,
+    /// newest first.
+    pub async fn list_audit(&self, limit: i64) -> Result<Vec<AuditEvent>, DbError> {
+        let rows = sqlx::query_as::<_, EventRow>(
+            "SELECT id, timestamp, type, actor, target, properties, context
+             FROM inapp_events
+             ORDER BY timestamp DESC, id DESC
              LIMIT $1",
         )
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;
-        return rows.into_iter().map(AuditRow::into_entry).collect();
+        return rows.into_iter().map(EventRow::into_event).collect();
     }
 
     /// The audit history for one record, newest first.
@@ -130,33 +143,31 @@ impl Db {
         &self,
         resource: &str,
         resource_id: &str,
-    ) -> Result<Vec<AuditEntry>, DbError> {
-        let rows = sqlx::query_as::<_, AuditRow>(
-            "SELECT id, actor_id, actor_email, action, resource, resource_id,
-                    before, after, ip, created_at
-             FROM audit_log
-             WHERE resource = $1 AND resource_id = $2
-             ORDER BY created_at DESC, id DESC",
+    ) -> Result<Vec<AuditEvent>, DbError> {
+        let rows = sqlx::query_as::<_, EventRow>(
+            "SELECT id, timestamp, type, actor, target, properties, context
+             FROM inapp_events
+             WHERE target ->> 'type' = $1 AND target -> 'properties' ->> 'id' = $2
+             ORDER BY timestamp DESC, id DESC",
         )
         .bind(resource)
         .bind(resource_id)
         .fetch_all(&self.pool)
         .await?;
-        return rows.into_iter().map(AuditRow::into_entry).collect();
+        return rows.into_iter().map(EventRow::into_event).collect();
     }
 
     /// The audit history for one actor, newest first.
-    pub async fn list_audit_for_actor(&self, actor_id: &str) -> Result<Vec<AuditEntry>, DbError> {
-        let rows = sqlx::query_as::<_, AuditRow>(
-            "SELECT id, actor_id, actor_email, action, resource, resource_id,
-                    before, after, ip, created_at
-             FROM audit_log
-             WHERE actor_id = $1
-             ORDER BY created_at DESC, id DESC",
+    pub async fn list_audit_for_actor(&self, actor_id: &str) -> Result<Vec<AuditEvent>, DbError> {
+        let rows = sqlx::query_as::<_, EventRow>(
+            "SELECT id, timestamp, type, actor, target, properties, context
+             FROM inapp_events
+             WHERE actor -> 'properties' ->> 'id' = $1
+             ORDER BY timestamp DESC, id DESC",
         )
         .bind(actor_id)
         .fetch_all(&self.pool)
         .await?;
-        return rows.into_iter().map(AuditRow::into_entry).collect();
+        return rows.into_iter().map(EventRow::into_event).collect();
     }
 }
