@@ -277,6 +277,8 @@ The environment is built once at startup in three steps: (1) built-ins are compi
 
 Built-in templates carry htmx attributes: sortable headers, the filter form, the search box (debounced), and pagination all re-fetch the list and swap only the `#resource-table` target. With JS disabled every control degrades to plain HTTP forms and links — full-page navigation. The framework owns its static assets: `web/static/` (the stylesheet plus a vendored htmx build) is embedded by `build.rs` into a name → bytes table and served from the binary at `/static/{*path}` — the handler never touches the filesystem. `StaticFiles` (infrastructure) does the lookup and maps extensions to content types; unknown names answer 404. `BUILTIN_ASSETS` lists every asset the built-in templates reference, and the boot check verifies each one is embedded. Nothing in the framework depends on htmx — users can drop or replace it.
 
+The design language and UI kit — tokens, CSS architecture, component specs, interaction patterns — live in `01-ui-kit.md`; §8's templates and assets render against that contract.
+
 ## 9. The database layer (`twentytoo-db`)
 
 PostgreSQL via sqlx 0.8, owning the framework's schema only:
@@ -313,7 +315,7 @@ Named in the code as arriving later; the contracts are already in place where no
 
 Concepts from earlier brainstorms that were never built and are no longer part of the design intent:
 
-- **SSE broadcasting / live updates, notifications, saved filters, scheduled tasks, API keys, per-user dashboard customization, record comments, import wizard (CSV/Excel mapping), theming tokens / dark mode, i18n, global search** — all considered; none shipped, none required by anything that exists.
+- **SSE broadcasting / live updates, notifications, saved filters, scheduled tasks, API keys, per-user dashboard customization, record comments, import wizard (CSV/Excel mapping), dark mode, i18n, global search** — all considered; none shipped, none required by anything that exists. (Theming tokens were dropped here but landed in `01-ui-kit.md` as the light-only `--tt-*` set; dark mode itself stays dropped.)
 - **Custom `Page` primitive** — the escape hatch is plain axum (`into_router()` + custom handlers over the same state/templates); no dedicated page API.
 - **Proc-macro DSL and derive macros** — rejected; the builder + `field!`/`fields!` `macro_rules!` macros keep standard Rust tooling working and the surface iteration-free.
 - **Workflow/approval chains, drag-and-drop builders, public-facing portals, native mobile apps, GraphQL APIs** — non-goals.
@@ -333,4 +335,4 @@ Concepts from earlier brainstorms that were never built and are no longer part o
 | Validation timing | Fail at boot | `build()` validates identifiers, templates, and auth preconditions before serving |
 | View-layer data | Entities as serialized JSON only | The engine treats typed and `serde_json::Value` entities identically |
 | Errors | Hand-rolled enums, `Display` + `source()` | No thiserror/anyhow anywhere |
-| Client-side JS | Optional htmx only | SSR-first; everything degrades to plain HTTP |
+| Client-side JS | Optional htmx + one optional <2KB vanilla-JS enhancement script | SSR-first; everything degrades to plain HTTP; the JS policy and ceiling live in `01-ui-kit.md` §9 |
