@@ -10,6 +10,7 @@ use crate::capabilities::Capabilities;
 use crate::field::FieldSpec;
 use crate::query::{Page, Pagination, Query};
 use crate::write::{Mutation, WriteContext};
+use futures::stream::{self, StreamExt};
 
 /// A data source behind one or more resources.
 ///
@@ -46,7 +47,7 @@ where
                 out.push(e);
             }
         }
-        Ok(out)
+        return Ok(out);
     }
 
     /// Create a record. Default: `Unsupported`.
@@ -56,7 +57,7 @@ where
         ctx: &WriteContext<'_>,
     ) -> Result<E, DataError> {
         let _ = (data, ctx);
-        Err(DataError::Unsupported)
+        return Err(DataError::Unsupported);
     }
 
     /// Merge a patch into a record. Default: `Unsupported`.
@@ -67,13 +68,13 @@ where
         ctx: &WriteContext<'_>,
     ) -> Result<E, DataError> {
         let _ = (id, patch, ctx);
-        Err(DataError::Unsupported)
+        return Err(DataError::Unsupported);
     }
 
     /// Delete a record. Default: `Unsupported`.
     async fn delete(&self, id: &Id, ctx: &WriteContext<'_>) -> Result<(), DataError> {
         let _ = (id, ctx);
-        Err(DataError::Unsupported)
+        return Err(DataError::Unsupported);
     }
 
     /// Apply a batch of mutations. Default: sequential, stopping at the
@@ -103,19 +104,19 @@ where
                 },
             }
         }
-        Ok(())
+        return Ok(());
     }
 
     /// Begin a transaction. Default: `Unsupported` — the engine falls back
     /// to sequential mutations with per-row error reporting.
     async fn begin(&self) -> Result<Box<dyn TxAdapter<E, Id>>, DataError> {
-        Err(DataError::Unsupported)
+        return Err(DataError::Unsupported);
     }
 
     /// Aggregate over rows. Default: `Unsupported`.
     async fn aggregate(&self, agg: &Aggregation) -> Result<AggregationResult, DataError> {
         let _ = agg;
-        Err(DataError::Unsupported)
+        return Err(DataError::Unsupported);
     }
 
     /// Stream all matching rows. Default: page through `list` (fine up to
@@ -130,17 +131,16 @@ where
     /// requests, ending when a page is empty or the adapter signals no
     /// `next`; a page failure yields one `Err` and ends the stream.
     async fn stream<'a>(&'a self, query: Query) -> BoxStream<'a, Result<E, DataError>> {
-        use futures::stream::{self, StreamExt};
-
         let per_page = match query.pagination {
             Pagination::Offset { per_page, .. } | Pagination::Cursor { per_page, .. } => per_page,
         };
         let cursor_mode = matches!(query.pagination, Pagination::Cursor { .. });
 
-        stream::unfold(
+        return stream::unfold(
             (query.clone(), 1usize, None::<String>, false),
             move |(base, mut page_no, mut cursor, done)| {
                 let this = self;
+
                 async move {
                     if done {
                         return None;
@@ -182,13 +182,13 @@ where
             Ok(items) => futures::future::Either::Left(stream::iter(items.into_iter().map(Ok))),
             Err(e) => futures::future::Either::Right(stream::once(async move { Err(e) })),
         })
-        .boxed()
+        .boxed();
     }
 
     /// Introspect the source's schema. Default: `Unsupported`; sources with
     /// discoverable schemas return columns / mappings / a sample document.
     async fn describe(&self) -> Result<Vec<FieldSpec>, DataError> {
-        Err(DataError::Unsupported)
+        return Err(DataError::Unsupported);
     }
 
     /// Validate declared identifiers against the source. Default: `Ok(())`;
@@ -196,7 +196,7 @@ where
     /// checks.
     async fn validate(&self, identifiers: &[&str]) -> Result<(), DataError> {
         let _ = identifiers;
-        Ok(())
+        return Ok(());
     }
 }
 

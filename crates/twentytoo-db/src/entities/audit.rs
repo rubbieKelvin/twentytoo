@@ -13,9 +13,9 @@ pub struct NewAuditEntry {
     /// What happened.
     pub action: AuditAction,
     /// Resource key (`"stores"`, `"orders"`, …).
-    pub resource_key: String,
+    pub resource: String,
     /// The affected record's id.
-    pub record_id: String,
+    pub resource_id: String,
     /// Record state before the mutation.
     pub before: Option<Value>,
     /// Record state after the mutation.

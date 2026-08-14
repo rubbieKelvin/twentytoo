@@ -66,6 +66,17 @@ impl Db {
         return Ok(row);
     }
 
+    /// Look up a permission by code; `None` when it does not exist.
+    pub async fn get_permission_by_code(&self, code: &str) -> Result<Option<Permission>, DbError> {
+        let row = sqlx::query_as::<_, Permission>(
+            "SELECT id, code, description FROM permissions WHERE code = $1",
+        )
+        .bind(code)
+        .fetch_optional(&self.pool)
+        .await?;
+        return Ok(row);
+    }
+
     /// Register a role. Duplicate key → [`DbError::Conflict`].
     pub async fn create_role(
         &self,
@@ -81,6 +92,17 @@ impl Db {
         .bind(name)
         .bind(description)
         .fetch_one(&self.pool)
+        .await?;
+        return Ok(row);
+    }
+
+    /// Look up a role by key; `None` when it does not exist.
+    pub async fn get_role_by_key(&self, key: &str) -> Result<Option<Role>, DbError> {
+        let row = sqlx::query_as::<_, Role>(
+            "SELECT id, key, name, description FROM roles WHERE key = $1",
+        )
+        .bind(key)
+        .fetch_optional(&self.pool)
         .await?;
         return Ok(row);
     }

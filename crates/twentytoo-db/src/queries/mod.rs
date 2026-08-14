@@ -4,5 +4,6 @@
 pub mod access;
 pub mod audit;
 pub mod groups;
+pub mod login_tokens;
 pub mod sessions;
 pub mod users;

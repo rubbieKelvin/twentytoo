@@ -89,4 +89,30 @@ impl Db {
         }
         return Ok(());
     }
+
+    /// All users, ordered by display name.
+    pub async fn list_users(&self) -> Result<Vec<User>, DbError> {
+        let rows = sqlx::query_as::<_, User>(
+            "SELECT id, email, name, password_hash, status, created_at, updated_at
+             FROM users ORDER BY name",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        return Ok(rows);
+    }
+
+    /// Replace the display name. [`DbError::NotFound`] when the user does
+    /// not exist.
+    pub async fn update_user_name(&self, id: &Uuid, name: &str) -> Result<(), DbError> {
+        let affected = sqlx::query("UPDATE users SET name = $1, updated_at = now() WHERE id = $2")
+            .bind(name)
+            .bind(id)
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+        if affected == 0 {
+            return Err(DbError::NotFound);
+        }
+        return Ok(());
+    }
 }

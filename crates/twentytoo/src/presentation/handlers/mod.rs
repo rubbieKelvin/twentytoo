@@ -22,6 +22,7 @@ use twentytoo_core::Resource;
 
 use crate::presentation::state::AppState;
 
+pub mod auth;
 mod detail;
 mod forms;
 mod helpers;
@@ -29,6 +30,7 @@ mod home;
 mod list;
 
 mod mutations;
+pub mod users;
 
 pub use crate::presentation::extractors::{FormData, ListParams};
 pub use detail::detail_handler;

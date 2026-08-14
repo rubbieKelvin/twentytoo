@@ -8,10 +8,19 @@ CREATE TABLE audit_log (
     actor_id      text NOT NULL,
     actor_email   text NOT NULL,
     action        text NOT NULL
-                  CHECK (action IN ('create', 'update', 'delete', 'execute',
-                                    'login', 'logout', 'impersonate')),
-    resource_key  text NOT NULL,
-    record_id     text NOT NULL,
+                  CHECK (
+                    action IN (
+                        'create',
+                        'update',
+                        'delete',
+                        'execute',
+                        'login',
+                        'logout',
+                        'impersonate'
+                        )
+                    ),
+    resource      text NOT NULL,
+    resource_id   text NOT NULL,
     before        jsonb,
     after         jsonb,
     ip            text,
@@ -20,6 +29,6 @@ CREATE TABLE audit_log (
 
 -- Per-record history (the detail-view audit tab), per-actor, and global
 -- reverse-chronological listings.
-CREATE INDEX audit_log_resource_record_idx ON audit_log (resource_key, record_id, created_at);
+CREATE INDEX audit_log_resource_record_idx ON audit_log (resource, resource_id, created_at);
 CREATE INDEX audit_log_actor_idx ON audit_log (actor_id, created_at);
 CREATE INDEX audit_log_created_at_idx ON audit_log (created_at);

@@ -136,7 +136,7 @@ Rules:
 
 ## Breaking files into partials
 
-The goal is that **no single template exceeds ~80 lines** and every file has a
+The goal is that **no single template exceeds ~150 lines** and every file has a
 single responsibility. Three tools, three jobs:
 
 | Tool | When | Example |

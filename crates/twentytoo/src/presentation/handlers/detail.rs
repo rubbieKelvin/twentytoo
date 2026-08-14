@@ -35,7 +35,7 @@ pub async fn detail_handler<R: Resource>(
     let view = ResourceView::for_actor(resource, &actor);
     let can_update = resource.policy().can_update(&actor, &record);
     let can_delete = resource.policy().can_delete(&actor, &record);
-    let nav = st.app.registry.nav();
+    let nav = st.app.nav_for(&actor);
     let ctx = context! {
         resource => &view,
         record => &value,

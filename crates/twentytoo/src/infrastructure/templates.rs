@@ -27,6 +27,11 @@ pub const BUILTIN_TEMPLATES: &[&str] = &[
     "resource/detail.html.j2",
     "resource/form.html.j2",
     "partials/pagination.html.j2",
+    "auth/email.html.j2",
+    "auth/code.html.j2",
+    "auth/password.html.j2",
+    "users/list.html.j2",
+    "users/form.html.j2",
 ];
 
 /// The built environment, wrapped so the rest of the framework never names

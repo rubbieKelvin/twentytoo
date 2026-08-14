@@ -3,6 +3,7 @@
 
 pub mod audit;
 pub mod group;
+pub mod login_token;
 pub mod permission;
 pub mod role;
 pub mod session;
@@ -10,6 +11,7 @@ pub mod user;
 
 pub use crate::entities::audit::NewAuditEntry;
 pub use crate::entities::group::Group;
+pub use crate::entities::login_token::{LoginPurpose, LoginToken};
 pub use crate::entities::permission::Permission;
 pub use crate::entities::role::Role;
 pub use crate::entities::session::{Session, SessionInfo};

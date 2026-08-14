@@ -14,7 +14,7 @@ pub async fn home_handler(
     axum::Extension(actor): axum::Extension<Actor>,
 ) -> Result<Response, AppError> {
     let cards = app.registry.home_cards(&actor).await;
-    let nav = app.registry.nav();
+    let nav = app.nav_for(&actor);
     let ctx = context! {
         cards => &cards,
         nav => &nav,

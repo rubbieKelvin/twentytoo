@@ -1,0 +1,16 @@
+{# The code step (email confirmation on): the 6-digit code emailed to the
+   address submitted on the previous screen. #}
+{% extends "layout/auth.html.j2" %}
+
+{% block title %}Confirm code — Twentytoo{% endblock %}
+
+{% block content %}
+<h1>Confirm code</h1>
+<form method="post" action="/login/code">
+  <div class="field">
+    <label for="code">Login code</label>
+    <input name="code" id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus>
+  </div>
+  <button type="submit" class="btn btn-primary">Confirm code</button>
+</form>
+{% endblock %}

@@ -132,7 +132,7 @@ pub async fn list_handler<R: Resource>(
         &link_base,
         &base_path,
     );
-    let nav = st.app.registry.nav();
+    let nav = st.app.nav_for(&actor);
     let ctx = context! {
         resource => &view,
         items => &result.items,

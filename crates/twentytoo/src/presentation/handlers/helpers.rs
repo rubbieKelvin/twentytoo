@@ -12,7 +12,16 @@ use crate::application::dto::{PageLink, PagerView, ResourceView};
 use crate::application::payload;
 use crate::shared::errors::AppError;
 
-use super::ResourceState;
+use super::{FormData, ResourceState};
+
+/// The first submitted value of a form field (single-value fields arrive
+/// as one-element vectors).
+pub(super) fn single_value<'a>(form: &'a FormData, name: &str) -> Option<&'a str> {
+    return form
+        .get(name)
+        .and_then(|v| return v.first())
+        .map(|s| return s.as_str());
+}
 
 /// Flag gate: a resource behind a disabled flag is 404 (`01` §4.2).
 pub(super) async fn gate_resource<R: Resource>(
@@ -44,7 +53,7 @@ pub(super) fn render_form_error<R: Resource>(
     form_error: Option<String>,
 ) -> Result<Response, AppError> {
     let view = ResourceView::for_actor(resource, actor);
-    let nav = st.app.registry.nav();
+    let nav = st.app.nav_for(actor);
     let ctx = context! {
         resource => &view,
         mode,

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Twentytoo{% endblock %}</title>
+{# Standalone shell for the login screens: no topbar/nav — these pages
+   render before an actor exists. The form/field/alert styles mirror
+   layout/base.html.j2. #}
+<style>
+  :root { --accent:#2563eb; --bg:#f6f7f9; --text:#1c2430; --muted:#667085; --border:#e2e6ec; --danger:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  main { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1.5rem; }
+  .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.5rem; width:100%; max-width:400px; }
+  .brand { display:block; margin-bottom:1.25rem; font-weight:700; color:var(--text); text-decoration:none; }
+  .card h1 { margin:0 0 1rem; font-size:1.25rem; }
+  .field { margin-bottom:1rem; }
+  .field label { display:block; font-size:.85rem; font-weight:600; margin-bottom:.3rem; }
+  .field input { width:100%; padding:.45rem .6rem; border:1px solid var(--border); border-radius:6px; font:inherit; }
+  .alert { padding:.6rem .9rem; border-radius:6px; margin-bottom:1rem; font-size:.875rem; }
+  .alert.error { background:#fef2f2; color:var(--danger); border:1px solid #fecaca; }
+  .btn { display:inline-block; padding:.4rem .8rem; border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--text); text-decoration:none; font-size:.875rem; cursor:pointer; }
+  .btn-primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <a class="brand" href="/login">Twentytoo</a>
+    {% if error %}
+      <div class="alert error">{{ error }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </div>
+</main>
+</body>
+</html>

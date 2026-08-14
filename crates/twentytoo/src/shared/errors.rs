@@ -66,6 +66,10 @@ pub enum BuildError {
     /// Template assembly failed (syntax, unreadable override dir, or a
     /// referenced name that does not resolve).
     Template(minijinja::Error),
+    /// The build configuration is incoherent (e.g. auth without a
+    /// database, or a resource key that collides with the framework's
+    /// auth routes).
+    Config(String),
 }
 
 impl std::fmt::Display for BuildError {
@@ -73,6 +77,7 @@ impl std::fmt::Display for BuildError {
         match self {
             BuildError::Data(e) => return write!(f, "boot validation failed: {e}"),
             BuildError::Template(e) => return write!(f, "template build failed: {e}"),
+            BuildError::Config(msg) => return write!(f, "configuration error: {msg}"),
         }
     }
 }
@@ -82,6 +87,7 @@ impl std::error::Error for BuildError {
         match self {
             BuildError::Data(e) => return Some(e),
             BuildError::Template(e) => return Some(e),
+            BuildError::Config(_) => return None,
         }
     }
 }

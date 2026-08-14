@@ -13,7 +13,7 @@ use chrono::{Duration, Utc};
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use twentytoo_core::AuditAction;
-use twentytoo_db::entities::{NewAuditEntry, SessionInfo, UserStatus};
+use twentytoo_db::entities::{LoginPurpose, NewAuditEntry, SessionInfo, UserStatus};
 use twentytoo_db::{Db, DbError};
 use uuid::Uuid;
 
@@ -731,8 +731,8 @@ async fn audit_entries_roundtrip_and_query() {
             actor_id: admin.id.to_string(),
             actor_email: admin.email.clone(),
             action: AuditAction::Create,
-            resource_key: "stores".to_string(),
-            record_id: record_id.clone(),
+            resource: "stores".to_string(),
+            resource_id: record_id.clone(),
             before: None,
             after: Some(json!({"name": "Downtown"})),
             ip: Some("10.0.0.1".to_string()),
@@ -747,8 +747,8 @@ async fn audit_entries_roundtrip_and_query() {
         actor_id: admin.id.to_string(),
         actor_email: admin.email.clone(),
         action: AuditAction::Update,
-        resource_key: "stores".to_string(),
-        record_id: record_id.clone(),
+        resource: "stores".to_string(),
+        resource_id: record_id.clone(),
         before: Some(json!({"name": "Downtown"})),
         after: Some(json!({"name": "Uptown"})),
         ip: None,
@@ -761,8 +761,8 @@ async fn audit_entries_roundtrip_and_query() {
         actor_id: other.id.to_string(),
         actor_email: other.email.clone(),
         action: AuditAction::Delete,
-        resource_key: "orders".to_string(),
-        record_id: Uuid::new_v4().to_string(),
+        resource: "orders".to_string(),
+        resource_id: Uuid::new_v4().to_string(),
         before: Some(json!({"id": "o1"})),
         after: None,
         ip: None,
@@ -798,4 +798,145 @@ async fn audit_entries_roundtrip_and_query() {
     // Global: sees everyone.
     let all = db.list_audit(100).await.expect("list all");
     assert!(all.len() >= 3);
+}
+
+// ---------------------------------------------------------------------------
+// Login tokens
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn login_token_roundtrip_consume_once() {
+    let Some(db) = connect_test_db().await else {
+        return;
+    };
+    let user = db
+        .create_user(&unique_email("lt-roundtrip"), "Token", None)
+        .await
+        .expect("create user");
+    let token = format!("lt-{}", Uuid::new_v4().simple());
+    db.create_login_token(
+        &token,
+        "alice@example.com",
+        Some(&user.id),
+        LoginPurpose::EmailOk,
+        None,
+        Utc::now() + Duration::hours(1),
+    )
+    .await
+    .expect("create login token");
+
+    let loaded = db
+        .get_login_token(&token)
+        .await
+        .expect("get")
+        .expect("found");
+    assert_eq!(loaded.email, "alice@example.com");
+    assert_eq!(loaded.user_id, Some(user.id));
+    assert_eq!(loaded.purpose, LoginPurpose::EmailOk);
+
+    assert!(db.consume_login_token(&token).await.expect("consume"));
+    assert!(db.get_login_token(&token).await.expect("get").is_none());
+    assert!(!db.consume_login_token(&token).await.expect("consume again"));
+}
+
+#[tokio::test]
+async fn login_token_attempts_bump_and_expiry() {
+    let Some(db) = connect_test_db().await else {
+        return;
+    };
+    let user = db
+        .create_user(&unique_email("lt-attempts"), "Attempts", None)
+        .await
+        .expect("create user");
+
+    let token = format!("lt-{}", Uuid::new_v4().simple());
+    db.create_login_token(
+        &token,
+        "bob@example.com",
+        Some(&user.id),
+        LoginPurpose::CodeOk,
+        None,
+        Utc::now() + Duration::hours(1),
+    )
+    .await
+    .expect("create");
+
+    assert_eq!(
+        db.bump_login_token_attempts(&token).await.expect("bump 1"),
+        1
+    );
+    assert_eq!(
+        db.bump_login_token_attempts(&token).await.expect("bump 2"),
+        2
+    );
+    assert_eq!(
+        db.bump_login_token_attempts(&token).await.expect("bump 3"),
+        3
+    );
+
+    // An expired token is invisible to both reads and bumps.
+    let expired = format!("lt-expired-{}", Uuid::new_v4().simple());
+    db.create_login_token(
+        &expired,
+        "carol@example.com",
+        Some(&user.id),
+        LoginPurpose::EmailOk,
+        None,
+        Utc::now() - Duration::minutes(1),
+    )
+    .await
+    .expect("create expired");
+    assert!(db.get_login_token(&expired).await.expect("get").is_none());
+    let err = db
+        .bump_login_token_attempts(&expired)
+        .await
+        .expect_err("bump expired");
+    assert!(matches!(err, DbError::NotFound), "got {err:?}");
+}
+
+// ---------------------------------------------------------------------------
+// Users: list + rename
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn list_users_orders_and_update_name_persists() {
+    let Some(db) = connect_test_db().await else {
+        return;
+    };
+    let zed = db
+        .create_user(&unique_email("list-zed"), "Zed", None)
+        .await
+        .expect("create zed");
+    db.create_user(&unique_email("list-alice"), "Alice", None)
+        .await
+        .expect("create alice");
+
+    let users = db.list_users().await.expect("list");
+    // The shared database accumulates rows from parallel tests, and its
+    // locale collation orders case-insensitively (unlike Rust's byte
+    // sort) — assert only the relative order of this test's own rows.
+    let alice_pos = users
+        .iter()
+        .position(|u| return u.name == "Alice")
+        .expect("alice listed");
+    let zed_pos = users
+        .iter()
+        .position(|u| return u.name == "Zed")
+        .expect("zed listed");
+    assert!(
+        alice_pos < zed_pos,
+        "users returned in name order: Alice at {alice_pos}, Zed at {zed_pos}"
+    );
+
+    db.update_user_name(&zed.id, "Zed Reborn")
+        .await
+        .expect("rename");
+    let loaded = db.get_user(&zed.id).await.expect("get").expect("found");
+    assert_eq!(loaded.name, "Zed Reborn");
+
+    let err = db
+        .update_user_name(&Uuid::new_v4(), "Ghost")
+        .await
+        .expect_err("missing");
+    assert!(matches!(err, DbError::NotFound), "got {err:?}");
 }

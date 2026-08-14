@@ -24,7 +24,7 @@ pub async fn create_form_handler<R: Resource>(
         return Err(AppError::Forbidden);
     }
     let view = ResourceView::for_actor(resource, &actor);
-    let nav = st.app.registry.nav();
+    let nav = st.app.nav_for(&actor);
     let ctx = context! {
         resource => &view,
         mode => "create",
@@ -60,7 +60,7 @@ pub async fn edit_form_handler<R: Resource>(
     let values =
         serde_json::to_value(&record).map_err(|e| return AppError::Internal(Box::new(e)))?;
     let view = ResourceView::for_actor(resource, &actor);
-    let nav = st.app.registry.nav();
+    let nav = st.app.nav_for(&actor);
     let ctx = context! {
         resource => &view,
         mode => "edit",

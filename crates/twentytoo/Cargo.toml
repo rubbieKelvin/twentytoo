@@ -10,12 +10,17 @@ build = "build.rs"
 
 [dependencies]
 twentytoo-core = { path = "../twentytoo-core", version = "0.1.0" }
+twentytoo-db = { path = "../twentytoo-db", version = "0.1.0" }
+argon2 = { version = "0.5", features = ["std"] }
+rand = "0.9"
+sha2 = "0.10"
 axum = "0.8"
 minijinja = "2"
 minijinja-embed = "1"
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
+uuid.workspace = true
 async-trait.workspace = true
 parking_lot.workspace = true
 serde_urlencoded = "0.7"
@@ -26,6 +31,7 @@ minijinja-embed = "1"
 [dev-dependencies]
 serde.workspace = true
 serde_json.workspace = true
+sqlx = { workspace = true }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"

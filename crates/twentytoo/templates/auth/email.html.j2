@@ -1,0 +1,16 @@
+{# Step 1 of the login flow: the email address. No signup link — accounts
+   are created by admins or by domain allowance, never self-service. #}
+{% extends "layout/auth.html.j2" %}
+
+{% block title %}Sign in — Twentytoo{% endblock %}
+
+{% block content %}
+<h1>Sign in</h1>
+<form method="post" action="/login/email">
+  <div class="field">
+    <label for="email">Email</label>
+    <input name="email" id="email" type="email" required autofocus>
+  </div>
+  <button type="submit" class="btn btn-primary">Continue</button>
+</form>
+{% endblock %}

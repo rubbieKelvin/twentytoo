@@ -24,8 +24,8 @@ struct AuditRow {
     actor_id: String,
     actor_email: String,
     action: String,
-    resource_key: String,
-    record_id: String,
+    resource: String,
+    resource_id: String,
     before: Option<Value>,
     after: Option<Value>,
     ip: Option<String>,
@@ -62,22 +62,20 @@ fn action_from_str(s: &str) -> Option<AuditAction> {
 }
 
 impl AuditRow {
-    /// Convert a stored row into the core [`AuditEntry`] type, mapping the
-    /// `action` text.
+    /// Map the stored `action` text into an [`AuditEntry`].
     fn into_entry(self) -> Result<AuditEntry, DbError> {
         let action = action_from_str(&self.action).ok_or_else(|| {
-            return DbError::Internal(sqlx::Error::Decode(Box::new(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("unknown audit action: {}", self.action),
-            ))));
+            return DbError::Internal(sqlx::Error::Decode(
+                "audit action outside the CHECK set".into(),
+            ));
         })?;
         return Ok(AuditEntry {
             id: self.id,
             actor_id: self.actor_id,
             actor_email: self.actor_email,
             action,
-            resource_key: self.resource_key,
-            record_id: self.record_id,
+            resource_key: self.resource,
+            record_id: self.resource_id,
             before: self.before,
             after: self.after,
             ip: self.ip,
@@ -92,16 +90,16 @@ impl Db {
     pub async fn record_audit(&self, entry: &NewAuditEntry) -> Result<AuditEntry, DbError> {
         let row = sqlx::query_as::<_, AuditRow>(
             "INSERT INTO audit_log
-                 (actor_id, actor_email, action, resource_key, record_id, before, after, ip)
+                 (actor_id, actor_email, action, resource, resource_id, before, after, ip)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             RETURNING id, actor_id, actor_email, action, resource_key, record_id,
+             RETURNING id, actor_id, actor_email, action, resource, resource_id,
                        before, after, ip, created_at",
         )
         .bind(&entry.actor_id)
         .bind(&entry.actor_email)
         .bind(action_to_str(&entry.action))
-        .bind(&entry.resource_key)
-        .bind(&entry.record_id)
+        .bind(&entry.resource)
+        .bind(&entry.resource_id)
         .bind(&entry.before)
         .bind(&entry.after)
         .bind(&entry.ip)
@@ -114,8 +112,9 @@ impl Db {
     /// first.
     pub async fn list_audit(&self, limit: i64) -> Result<Vec<AuditEntry>, DbError> {
         let rows = sqlx::query_as::<_, AuditRow>(
-            "SELECT id, actor_id, actor_email, action, resource_key, record_id,
+            "SELECT id, actor_id, actor_email, action, resource, resource_id,
                     before, after, ip, created_at
+
              FROM audit_log
              ORDER BY created_at DESC, id DESC
              LIMIT $1",
@@ -129,18 +128,18 @@ impl Db {
     /// The audit history for one record, newest first.
     pub async fn list_audit_for_record(
         &self,
-        resource_key: &str,
-        record_id: &str,
+        resource: &str,
+        resource_id: &str,
     ) -> Result<Vec<AuditEntry>, DbError> {
         let rows = sqlx::query_as::<_, AuditRow>(
-            "SELECT id, actor_id, actor_email, action, resource_key, record_id,
+            "SELECT id, actor_id, actor_email, action, resource, resource_id,
                     before, after, ip, created_at
              FROM audit_log
-             WHERE resource_key = $1 AND record_id = $2
+             WHERE resource = $1 AND resource_id = $2
              ORDER BY created_at DESC, id DESC",
         )
-        .bind(resource_key)
-        .bind(record_id)
+        .bind(resource)
+        .bind(resource_id)
         .fetch_all(&self.pool)
         .await?;
         return rows.into_iter().map(AuditRow::into_entry).collect();
@@ -149,7 +148,7 @@ impl Db {
     /// The audit history for one actor, newest first.
     pub async fn list_audit_for_actor(&self, actor_id: &str) -> Result<Vec<AuditEntry>, DbError> {
         let rows = sqlx::query_as::<_, AuditRow>(
-            "SELECT id, actor_id, actor_email, action, resource_key, record_id,
+            "SELECT id, actor_id, actor_email, action, resource, resource_id,
                     before, after, ip, created_at
              FROM audit_log
              WHERE actor_id = $1
