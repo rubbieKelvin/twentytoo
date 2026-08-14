@@ -30,6 +30,7 @@ mod home;
 mod list;
 
 mod mutations;
+mod static_files;
 pub mod users;
 
 pub use crate::presentation::extractors::{FormData, ListParams};
@@ -40,6 +41,7 @@ pub use home::{home_handler, not_found};
 pub use list::list_handler;
 
 pub use mutations::{create_handler, delete_handler, update_handler};
+pub use static_files::static_file_handler;
 
 /// Per-resource handler state: the app plus one concrete resource.
 pub struct ResourceState<R: Resource> {

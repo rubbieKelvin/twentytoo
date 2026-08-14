@@ -6,8 +6,9 @@ context is available, how escaping works, and — most importantly — how to ke
 a template readable and how to split it into partials.
 
 The engine, loader, and function/filter registry live in
-`src/templates.rs`. The templates themselves are embedded into the binary by
-`build.rs` via `minijinja_embed::embed_templates!`.
+`src/infrastructure/templates.rs`. The templates themselves live here at the
+repo root (`web/templates/`) and are embedded into the binary by `build.rs`
+via `minijinja_embed::embed_templates!`.
 
 ## Directory layout
 
@@ -26,7 +27,7 @@ templates/
 
 ## Loader & validation model
 
-Three sources, resolved in order (`src/templates.rs::TemplateEngine::new`):
+Three sources, resolved in order (`src/infrastructure/templates.rs::TemplateEngine::new`):
 
 1. **Built-ins** — compiled in by `minijinja_embed`. Invalid syntax fails the
    build, not the first request.
@@ -35,10 +36,29 @@ Three sources, resolved in order (`src/templates.rs::TemplateEngine::new`):
 3. **User-only templates** — loaded lazily through a path loader for names not
    in the binary.
 
-`BUILTIN_TEMPLATES` (in `src/templates.rs`) lists every template a handler
-renders; the boot check verifies each one resolves. **When a handler renders a
-new template, add its name to `BUILTIN_TEMPLATES`** so boot validation covers
-it.
+`BUILTIN_TEMPLATES` (in `src/infrastructure/templates.rs`) lists every
+template a handler renders; the boot check verifies each one resolves.
+**When a handler renders a new template, add its name to
+`BUILTIN_TEMPLATES`** so boot validation covers it.
+
+## Static assets
+
+Built-in templates reference framework assets under `/static` (`app.css`,
+the vendored htmx script), served from the binary — the handler never reads
+the filesystem. Assets live in `web/static/`, embed via `build.rs` into a
+name → bytes table, and are resolved by `StaticFiles`
+(`src/infrastructure/static_files.rs`), which maps file extensions to
+content types.
+
+Rules:
+
+1. A template references an asset as `/static/<name>` with `<name>`
+   relative to `web/static/` (`css/app.css`, `js/htmx.min.js`).
+2. **When a built-in template references a new asset, add its name to
+   `StaticFiles::BUILTIN_ASSETS`** in `src/infrastructure/static_files.rs` —
+   the boot check fails if a declared asset is missing from the binary.
+3. Keep assets framework-owned and small; vendored third-party JS (htmx) is
+   checked in under `web/static/js/` rather than loaded from a CDN.
 
 ## Escaping (non-negotiable)
 
@@ -91,7 +111,7 @@ booleans, precomputed by the handler. They are *not* fields on `resource`.
 
 ## Functions & filters
 
-Registered in `src/templates.rs`. Prefer these over reimplementing logic in
+Registered in `src/infrastructure/templates.rs`. Prefer these over reimplementing logic in
 templates — that is their entire purpose.
 
 | Call | Returns | Purpose |
@@ -194,3 +214,5 @@ MiniJinja is close to Jinja2, but these are absent or different — avoid them:
 - [ ] No `|safe` on user/entity data.
 - [ ] Reusable or >40-line fragments are extracted into `partials/`.
 - [ ] `cargo build` passes (syntax is validated at build time).
+- [ ] Any asset a built-in template references is in
+      `StaticFiles::BUILTIN_ASSETS`.

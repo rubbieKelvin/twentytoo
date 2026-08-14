@@ -275,7 +275,7 @@ The environment is built once at startup in three steps: (1) built-ins are compi
 
 ### 8.6 Progressive enhancement with htmx
 
-Built-in templates carry htmx attributes: sortable headers, the filter form, the search box (debounced), and pagination all re-fetch the list and swap only the `#resource-table` target. With JS disabled every control degrades to plain HTTP forms and links — full-page navigation. The script is currently served from a CDN; a framework-owned static-asset pipeline is a later slice. Nothing in the framework depends on htmx — users can drop or replace it.
+Built-in templates carry htmx attributes: sortable headers, the filter form, the search box (debounced), and pagination all re-fetch the list and swap only the `#resource-table` target. With JS disabled every control degrades to plain HTTP forms and links — full-page navigation. The framework owns its static assets: `web/static/` (the stylesheet plus a vendored htmx build) is embedded by `build.rs` into a name → bytes table and served from the binary at `/static/{*path}` — the handler never touches the filesystem. `StaticFiles` (infrastructure) does the lookup and maps extensions to content types; unknown names answer 404. `BUILTIN_ASSETS` lists every asset the built-in templates reference, and the boot check verifies each one is embedded. Nothing in the framework depends on htmx — users can drop or replace it.
 
 ## 9. The database layer (`twentytoo-db`)
 
@@ -307,7 +307,7 @@ Named in the code as arriving later; the contracts are already in place where no
 - **Streaming exports (CSV/Excel)** — `stream()` default exists; no export UI.
 - **Schema-discovery auto-configuration** — `describe()` exists; no point-at-a-table flow.
 - **Adapter decorators** (caching, retry, rate limit, read-only, enrichment) — none shipped.
-- **Static-asset pipeline** for the htmx script; **impersonation**; **roles & permissions management UI** (grants are database-level today).
+- **Impersonation**; **roles & permissions management UI** (grants are database-level today).
 
 ## 12. Dropped and rejected
 

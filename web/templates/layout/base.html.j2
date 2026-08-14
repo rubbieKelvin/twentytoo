@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Twentytoo{% endblock %}</title>
+<link rel="stylesheet" href="/static/css/app.css">
+{# htmx upgrades sort/filter/search/pagination to partial swaps; every
+   control degrades to plain HTTP without JS (`00` §8.6). Vendored with the
+   framework assets and served from the binary, not a CDN. #}
+<script src="/static/js/htmx.min.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">Twentytoo</a>
+  <nav>
+    <a href="/" {% if active == "home" %}class="active"{% endif %}>Home</a>
+    {% for item in nav %}
+      <a href="/{{ item.key }}" {% if active == item.key %}class="active"{% endif %}>{{ item.label }}</a>
+    {% endfor %}
+  </nav>
+  <span class="actor">{{ actor.email }}</span>
+</header>
+<main>
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

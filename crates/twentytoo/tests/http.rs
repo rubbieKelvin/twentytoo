@@ -379,3 +379,60 @@ async fn unknown_path_is_404() {
     let (status, _) = get(&app, "/nope").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+// ---------------------------------------------------------------------------
+// Static assets (`00` §8.6)
+// ---------------------------------------------------------------------------
+
+/// GET and return status, content-type header, and body bytes.
+async fn get_asset(app: &Router<()>, uri: &str) -> (StatusCode, Option<String>, Vec<u8>) {
+    let res = app
+        .clone()
+        .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let status = res.status();
+    let content_type = res
+        .headers()
+        .get(CONTENT_TYPE)
+        .map(|v| return v.to_str().unwrap().to_string());
+    let body = res.into_body().collect().await.unwrap().to_bytes().to_vec();
+    return (status, content_type, body);
+}
+
+#[tokio::test]
+async fn static_assets_serve_from_the_binary() {
+    let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
+    let app = build_app(WidgetResource::new(adapter)).await;
+
+    let (status, content_type, body) = get_asset(&app, "/static/css/app.css").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(content_type.as_deref(), Some("text/css; charset=utf-8"));
+    assert!(body.starts_with(b"/* Framework stylesheet"));
+
+    let (status, content_type, _) = get_asset(&app, "/static/js/htmx.min.js").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        content_type.as_deref(),
+        Some("text/javascript; charset=utf-8")
+    );
+}
+
+#[tokio::test]
+async fn missing_static_asset_is_404() {
+    let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
+    let app = build_app(WidgetResource::new(adapter)).await;
+    let (status, _, _) = get_asset(&app, "/static/nope.css").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn pages_reference_embedded_assets_not_a_cdn() {
+    let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
+    seed(&adapter, 1);
+    let app = build_app(WidgetResource::new(adapter)).await;
+    let (_, body) = get(&app, "/widgets").await;
+    assert!(body.contains("/static/css/app.css"));
+    assert!(body.contains("/static/js/htmx.min.js"));
+    assert!(!body.contains("unpkg.com"));
+}

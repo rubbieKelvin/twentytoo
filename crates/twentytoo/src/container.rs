@@ -12,9 +12,10 @@ use twentytoo_db::Db;
 
 use crate::application::auth::{AuthConfig, AuthService, CodeSender, ConsoleCodeSender};
 use crate::infrastructure::flags::FlagService;
+use crate::infrastructure::static_files::StaticFiles;
 use crate::infrastructure::templates::TemplateEngine;
 use crate::presentation::handlers::{
-    ResourceState, auth, home_handler, not_found, resource_routes, users,
+    ResourceState, auth, home_handler, not_found, resource_routes, static_file_handler, users,
 };
 use crate::presentation::middleware::actor_layer;
 use crate::presentation::registry::{DynResourceMeta, ResourceMeta, ResourceRegistry};
@@ -234,6 +235,15 @@ impl TwentytooBuilder {
         };
 
         let templates = Arc::new(TemplateEngine::new(self.template_dir.as_deref())?);
+        // Boot check (`00` §8.6): every asset the built-in templates
+        // reference must be embedded in the binary.
+        for name in StaticFiles::BUILTIN_ASSETS {
+            StaticFiles::get(name).ok_or_else(|| {
+                return BuildError::Config(format!(
+                    "built-in static asset missing from the binary: {name}"
+                ));
+            })?;
+        }
         let default_actor = self.default_actor.unwrap_or(Actor {
             id: "anonymous".to_string(),
             email: "anonymous@localhost".to_string(),
@@ -270,6 +280,7 @@ impl TwentytooBuilder {
 
         let mut router: Router<AppState> = Router::new()
             .route("/", get(home_handler))
+            .route("/static/{*path}", get(static_file_handler))
             .fallback(not_found);
         if app.auth.is_some() {
             router = router

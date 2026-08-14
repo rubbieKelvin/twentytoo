@@ -75,9 +75,14 @@ async fn session_actor(auth: &AuthService, headers: &axum::http::HeaderMap) -> O
         .flatten();
 }
 
-/// Whether `path` is one of the unauthenticated auth routes.
+/// Whether `path` is reachable without a session: the auth routes plus the
+/// embedded static assets — the login pages load the framework stylesheet
+/// before any actor exists.
 fn is_public_path(path: &str) -> bool {
-    return path == "/login" || path.starts_with("/login/") || path == "/logout";
+    return path == "/login"
+        || path.starts_with("/login/")
+        || path == "/logout"
+        || path.starts_with("/static/");
 }
 
 #[cfg(test)]
@@ -85,10 +90,12 @@ mod tests {
     use super::is_public_path;
 
     #[test]
-    fn public_paths_cover_the_auth_routes() {
+    fn public_paths_cover_auth_routes_and_static_assets() {
         assert!(is_public_path("/login"));
         assert!(is_public_path("/login/code"));
         assert!(is_public_path("/logout"));
+        assert!(is_public_path("/static/css/app.css"));
+        assert!(is_public_path("/static/js/htmx.min.js"));
     }
 
     #[test]
