@@ -1,11 +1,11 @@
-//! The MiniJinja environment the framework renders through (`05`).
+//! The MiniJinja environment the framework renders through (`00` §8).
 //!
 //! Built-ins compile into the binary with build-time syntax validation
 //! (`build.rs`); user overrides replace them by name and a path loader
-//! catches user-only templates (`05` §5.3). Autoescape is a framework
+//! catches user-only templates (`00` §8.5). Autoescape is a framework
 //! rule, not a default: `.html.j2` escapes by default, everything else
 //! renders raw; safe-string-returning functions escape internally
-//! (`05` §5.2).
+//! (`00` §8.3).
 
 use std::path::Path;
 
@@ -18,7 +18,7 @@ use twentytoo_core::Actor;
 use crate::application::dto::{FieldView, FilterView, KindView};
 use crate::shared::utils::{escape_html, format_money};
 
-/// Framework templates referenced by handlers — the boot check (`05` §12)
+/// Framework templates referenced by handlers — the boot check (`00` §8.5)
 /// verifies each of these resolves after the env build.
 pub const BUILTIN_TEMPLATES: &[&str] = &[
     "layout/base.html.j2",
@@ -42,7 +42,7 @@ pub struct TemplateEngine {
 
 impl TemplateEngine {
     /// Build the environment: embedded built-ins, then user overrides, then
-    /// a path loader for user-only templates (`05` §5.3).
+    /// a path loader for user-only templates (`00` §8.5).
     pub fn new(override_dir: Option<&Path>) -> Result<Self, minijinja::Error> {
         let mut env = Environment::new();
         env.set_auto_escape_callback(|name| {
@@ -87,7 +87,7 @@ impl TemplateEngine {
             env.set_loader(minijinja::path_loader(dir));
         }
 
-        // Framework functions and filters (`05` §6). `flag` and
+        // Framework functions and filters (`00` §8.4). `flag` and
         // `metric_value` register with their slices.
         env.add_function("can", can);
         env.add_function("format_field", format_field);
@@ -96,7 +96,7 @@ impl TemplateEngine {
         env.add_filter("format_datetime", format_datetime);
         env.add_filter("currency", currency);
 
-        // Boot check (`05` §12): every referenced name must resolve.
+        // Boot check (`00` §8.5): every referenced name must resolve.
         for name in BUILTIN_TEMPLATES {
             env.get_template(name)?;
         }
@@ -116,7 +116,7 @@ impl TemplateEngine {
 }
 
 /// Template function: `can("stores.create")` — RBAC check over the actor in
-/// the render context, read via `State` (`05` §6.1). No actor in context →
+/// the render context, read via `State` (`00` §8.4). No actor in context →
 /// deny.
 fn can(state: &State, permission: String) -> bool {
     let Some(actor) = state.lookup("actor") else {
@@ -130,7 +130,7 @@ fn can(state: &State, permission: String) -> bool {
 
 /// Template function: `format_field(value, kind)` — render one cell.
 /// Returns a safe string; every dynamic fragment is escaped internally
-/// (`05` §5.2).
+/// (`00` §8.3).
 fn format_field(value: Value, kind: ViaDeserialize<KindView>) -> Value {
     let kind = &*kind;
     let text = match kind.tag.as_str() {
@@ -338,7 +338,7 @@ fn form_control(field: ViaDeserialize<FieldView>, values: Value) -> Value {
 }
 
 /// Template filter: `value|format_datetime(fmt)` — chrono-backed date
-/// rendering (`05` §6). Accepts RFC 3339 strings; unparseable input passes
+/// rendering (`00` §8.4). Accepts RFC 3339 strings; unparseable input passes
 /// through unchanged.
 fn format_datetime(value: &Value, fmt: String) -> String {
     let Some(s) = value.as_str() else {
@@ -370,7 +370,7 @@ fn as_f64(value: &Value) -> Option<f64> {
 mod tests {
     use super::*;
 
-    /// The `05` §12 boot test: every referenced template resolves and
+    /// The `00` §8.5 boot test: every referenced template resolves and
     /// renders against fixture data — a missing or mistyped name fails
     /// here, before any request.
     #[test]

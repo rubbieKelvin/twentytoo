@@ -1,4 +1,4 @@
-//! The composition root / service container: builder → axum router (`01` §4.1).
+//! The composition root / service container: builder → axum router (`00` §7.2).
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -56,7 +56,7 @@ impl Twentytoo {
 pub trait ErasedResource: Send + Sync {
     /// Resource key.
     fn key(&self) -> &'static str;
-    /// Boot validation (`03` §11.3): every declared identifier must exist
+    /// Boot validation (`00` §7.2): every declared identifier must exist
     /// in the source.
     async fn validate(&self) -> Result<(), DataError>;
     /// The erased meta (cheap clone of the resource handle).
@@ -116,15 +116,18 @@ impl<R: Resource> ErasedResource for ResourceMeta<R> {
     }
 }
 
-/// The declarative surface: resources, templates, identity (`01` §7.1).
+/// The declarative surface: resources, templates, identity (`00` §7.2).
 #[derive(Default)]
 pub struct TwentytooBuilder {
     resources: Vec<Box<dyn ErasedResource>>,
     template_dir: Option<PathBuf>,
     default_actor: Option<Actor>,
-    /// The database for the framework-owned tables. Required when auth is
-    /// configured.
-    db: Option<Db>,
+    /// PostgreSQL URL for the framework-owned tables (auth, sessions,
+    /// users). Connected during [`TwentytooBuilder::build`]; required
+    /// when [`TwentytooBuilder::auth`] is configured.
+    db_url: Option<String>,
+    /// Apply the embedded schema migrations at build.
+    migrate: bool,
     /// Auth configuration; `None` = auth disabled (today's behavior).
     auth: Option<AuthConfig>,
     /// The login-code delivery channel; defaults to console logging.
@@ -140,23 +143,31 @@ impl TwentytooBuilder {
         return self;
     }
 
-    /// Directory of user templates overriding the built-ins (`05` §5.3).
+    /// Directory of user templates overriding the built-ins (`00` §8.5).
     pub fn with_template_dir(mut self, dir: impl Into<PathBuf>) -> Self {
         self.template_dir = Some(dir.into());
         return self;
     }
 
     /// The actor assumed for requests without a session. Until auth lands
-    /// (`01` Step 5) this is the only identity.
+    /// (`00` §6.3) this is the only identity.
     pub fn default_actor(mut self, actor: Actor) -> Self {
         self.default_actor = Some(actor);
         return self;
     }
 
-    /// The database for the framework-owned tables (auth, sessions,
-    /// users). Required when [`TwentytooBuilder::auth`] is configured.
-    pub fn db(mut self, db: Db) -> Self {
-        self.db = Some(db);
+    /// PostgreSQL URL for the framework-owned tables (auth, sessions,
+    /// users). Connected during [`TwentytooBuilder::build`]; required
+    /// when [`TwentytooBuilder::auth`] is configured.
+    pub fn db(mut self, url: impl Into<String>) -> Self {
+        self.db_url = Some(url.into());
+        return self;
+    }
+
+    /// Apply the embedded schema migrations to the configured database
+    /// during [`TwentytooBuilder::build`]. Requires [`TwentytooBuilder::db`].
+    pub fn migrate(mut self) -> Self {
+        self.migrate = true;
         return self;
     }
 
@@ -178,8 +189,8 @@ impl TwentytooBuilder {
     /// Validate, build, and return the framework instance.
     ///
     /// Fails at boot — not at first click — when a declared identifier is
-    /// missing from its source (`03` §11.3) or a template name does not
-    /// resolve (`05` §12).
+    /// missing from its source (`00` §7.2) or a template name does not
+    /// resolve (`00` §8.5).
     pub async fn build(self) -> Result<Twentytoo, BuildError> {
         // Fail at boot: every resource's identifiers must validate.
         for resource in &self.resources {
@@ -188,9 +199,14 @@ impl TwentytooBuilder {
 
         // Auth preconditions: the framework-owned tables must be reachable,
         // and the "users" key belongs to the built-in user area.
-        if self.auth.is_some() && self.db.is_none() {
+        if self.auth.is_some() && self.db_url.is_none() {
             return Err(BuildError::Config(
                 "auth requires a database: call .db(...)".to_string(),
+            ));
+        }
+        if self.migrate && self.db_url.is_none() {
+            return Err(BuildError::Config(
+                "migrate requires a database: call .db(...)".to_string(),
             ));
         }
         if self.auth.is_some() && self.resources.iter().any(|r| return r.key() == "users") {
@@ -199,6 +215,23 @@ impl TwentytooBuilder {
                     .to_string(),
             ));
         }
+
+        // The framework-owned tables: connect once, migrate on demand.
+        // Fail at boot — not at first login — when they are unreachable.
+        let db = match &self.db_url {
+            Some(url) => {
+                let db = Db::connect(url)
+                    .await
+                    .map_err(|e| return BuildError::Db(format!("connect to {url}: {e}")))?;
+                if self.migrate {
+                    db.migrate()
+                        .await
+                        .map_err(|e| return BuildError::Db(format!("migrate {url}: {e}")))?;
+                }
+                Some(db)
+            }
+            None => None,
+        };
 
         let templates = Arc::new(TemplateEngine::new(self.template_dir.as_deref())?);
         let default_actor = self.default_actor.unwrap_or(Actor {
@@ -213,7 +246,7 @@ impl TwentytooBuilder {
         // the service with the state and the middleware.
         let auth = match self.auth {
             Some(config) => {
-                let db = self.db.clone().expect("checked: auth needs a database");
+                let db = db.clone().expect("checked: auth needs a database");
                 let sender = self.code_sender.unwrap_or(Box::new(ConsoleCodeSender));
                 let service = Arc::new(AuthService::new(db, config, sender));
                 service

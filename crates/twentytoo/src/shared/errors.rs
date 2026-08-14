@@ -9,7 +9,7 @@ use crate::shared::utils::escape_html;
 /// A request-level failure, rendered as an HTML error response.
 ///
 /// Policy denials surface as `Forbidden`; adapter failures map through
-/// `Data` to their HTTP equivalents (`01` §10.3).
+/// `Data` to their HTTP equivalents (`00` §7.5).
 #[derive(Debug)]
 pub enum AppError {
     /// 404 — the resource or record does not exist.
@@ -70,6 +70,8 @@ pub enum BuildError {
     /// database, or a resource key that collides with the framework's
     /// auth routes).
     Config(String),
+    /// The database could not be reached, or its migrations failed.
+    Db(String),
 }
 
 impl std::fmt::Display for BuildError {
@@ -78,6 +80,7 @@ impl std::fmt::Display for BuildError {
             BuildError::Data(e) => return write!(f, "boot validation failed: {e}"),
             BuildError::Template(e) => return write!(f, "template build failed: {e}"),
             BuildError::Config(msg) => return write!(f, "configuration error: {msg}"),
+            BuildError::Db(msg) => return write!(f, "database setup failed: {msg}"),
         }
     }
 }
@@ -88,6 +91,7 @@ impl std::error::Error for BuildError {
             BuildError::Data(e) => return Some(e),
             BuildError::Template(e) => return Some(e),
             BuildError::Config(_) => return None,
+            BuildError::Db(_) => return None,
         }
     }
 }

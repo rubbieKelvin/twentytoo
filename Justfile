@@ -12,8 +12,9 @@ default:
 build:
     cargo build
 
-# Run the demo app (two resources on InMemoryAdapter) at http://127.0.0.1:3000.
-demo:
+# Run the demo app (two resources on InMemoryAdapter behind the login flow)
+# at http://127.0.0.1:3000. Needs the compose Postgres.
+demo: db-up
     cargo run -p twentytoo --example demo
 
 # Run the demo app, rebuilding on source change (needs `cargo install cargo-watch`).

@@ -8,7 +8,7 @@ use axum::http::uri::Scheme;
 /// Escape a string for HTML text and attribute contexts.
 ///
 /// Used by every safe-string-returning template function — the framework
-/// rule (`05` §5.2) is that those functions escape internally while the
+/// rule (`00` §8.3) is that those functions escape internally while the
 /// rest of the template is autoescaped by the environment.
 pub fn escape_html(s: &str) -> String {
     let mut out = String::with_capacity(s.len());

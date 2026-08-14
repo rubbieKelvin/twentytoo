@@ -1,4 +1,4 @@
--- Permission management (`00-init` §5.1): a role is a named bundle of
+-- Permission management (`00` §6.1): a role is a named bundle of
 -- permissions; a user holds roles directly (globally, or scoped to a
 -- group) and inherits the roles of every group they belong to. The actor
 -- loaded for a request is the union of those grants' permissions,

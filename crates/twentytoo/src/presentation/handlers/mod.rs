@@ -1,10 +1,10 @@
-//! Generic CRUD handlers: one implementation for every resource (`01` §4.2).
+//! Generic CRUD handlers: one implementation for every resource (`00` §7.3).
 //!
 //! Handlers are generic over `Resource` + its adapter; each resource gets a
 //! monomorphized sub-router carrying [`ResourceState`]. The capability
 //! matrix (`Capabilities`, read once at boot) drives pagination mode,
 //! search, sort, and filters — the same handler drives an offset source
-//! with numbered pages and a cursor-only source with prev/next (`03` §14.1).
+//! with numbered pages and a cursor-only source with prev/next (`00` §7.3).
 //!
 //! Layout: one module per concern — [`list`] (GET /{key}), [`detail`]
 //! (GET /{key}/{id}), [`forms`] (create/edit form GETs), [`mutations`]

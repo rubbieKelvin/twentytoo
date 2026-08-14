@@ -19,6 +19,17 @@ services:
     build: .
     ports:
       - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://twentytoo:twentytoo@db:5432/twentytoo
+    depends_on:
+      db:
+        condition: service_healthy
+
+  pgweb:
+    image: sosedoff/pgweb
+    ports: ["8081:8081"]
+    environment:
+      DATABASE_URL: postgres://twentytoo:twentytoo@db:5432/twentytoo?sslmode=disable
     depends_on:
       db:
         condition: service_healthy

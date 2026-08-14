@@ -9,7 +9,7 @@
 /// with more than two segments, or with a case difference never match.
 ///
 /// Serde derives exist for the render layer: the actor travels in template
-/// contexts (`05` §7) and the template `can()` function reads it back.
+/// contexts (`00` §8.4) and the template `can()` function reads it back.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Actor {
     /// Stable user id.

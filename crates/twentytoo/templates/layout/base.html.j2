@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Twentytoo{% endblock %}</title>
 {# htmx upgrades sort/filter/search/pagination to partial swaps; every control
-   degrades to plain HTTP without JS (01 §6.2). Served from CDN for now; the
+   degrades to plain HTTP without JS (`00` §8.6). Served from CDN for now; the
    framework-owned static-asset pipeline lands in a later slice. #}
 <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 <style>

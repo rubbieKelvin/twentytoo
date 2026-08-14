@@ -1,5 +1,5 @@
 {# Renders exactly one pager: numbered pages when the source can count
-   cheaply (Page.total: Some), prev/next otherwise (03 §4.3). #}
+   cheaply (Page.total: Some), prev/next otherwise (`00` §5.4). #}
 {% if pager.mode == "numbered" and pager.total_pages > 1 %}
 <nav class="pagination" hx-boost="true">
   {% if pager.prev_url %}

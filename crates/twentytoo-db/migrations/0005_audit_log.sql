@@ -1,4 +1,4 @@
--- Audit trail (`00-init` §5.5): every mutation and action invocation is
+-- Audit trail (`00` §6.5): every mutation and action invocation is
 -- recorded with the actor, the affected resource + record, and the
 -- before/after state. Append-only and immutable by design — the access
 -- layer only inserts and selects, and `actor_id`/`actor_email` are text

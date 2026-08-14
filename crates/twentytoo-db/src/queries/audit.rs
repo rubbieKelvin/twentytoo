@@ -1,5 +1,5 @@
 //! Audit queries: the append-only trail of mutations and actions
-//! (`00-init` §5.5).
+//! (`00` §6.5).
 //!
 //! Every entry records the actor (id + email snapshots), the affected
 //! resource + record, the before/after state, and the request IP. The

@@ -1,4 +1,4 @@
-{# The generated list view (05 §8). #}
+{# The generated list view (`00` §8). #}
 {% extends "layout/base.html.j2" %}
 
 {% block title %}{{ resource.label }} — Twentytoo{% endblock %}
@@ -12,7 +12,7 @@
 </div>
 
 {# Search + filter bar; htmx swaps only the table, plain HTTP falls back to
-   a full reload (01 §6.2). #}
+   a full reload (`00` §8.6). #}
 <form class="toolbar" hx-get="/{{ resource.key }}" hx-target="#resource-table" hx-trigger="submit">
   {% if resource.searchable %}
     <input type="search" name="q" value="{{ q|default('') }}" placeholder="Search {{ resource.label }}..."

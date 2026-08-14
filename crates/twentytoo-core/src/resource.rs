@@ -13,7 +13,7 @@ use crate::query::{FilterOp, SortField};
 
 /// A tab linking this resource to a related one.
 ///
-/// Shape derived from `00`'s `has_many(Customer, via: store_id)`: the tab
+/// Shape per `00` §5.1: the tab
 /// key and label on this resource, the related resource's key, and the
 /// back-reference field on the related entity.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -1,4 +1,4 @@
-//! Roles, permissions, grants, and the actor loader — RBAC (`00-init` §5).
+//! Roles, permissions, grants, and the actor loader — RBAC (`00` §6.1).
 //!
 //! A permission is a `resource.action` code; a role bundles permissions. A
 //! user holds roles directly (globally, or scoped to a group) and inherits

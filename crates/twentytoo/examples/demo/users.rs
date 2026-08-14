@@ -1,4 +1,6 @@
-//! The `users` resource: its entity, `Resource` impl, and seed data.
+//! The demo `members` resource (key `"members"` — `"users"` belongs to the
+//! framework's auth-backed Users area): its entity, `Resource` impl, and
+//! seed data.
 
 use std::sync::Arc;
 
@@ -26,11 +28,11 @@ impl Resource for UserResource {
     type Entity = User;
 
     fn key(&self) -> &'static str {
-        return "users";
+        return "members";
     }
 
     fn label(&self) -> &'static str {
-        return "Users";
+        return "Members";
     }
 
     fn fields(&self) -> Vec<Field<Self::Entity>> {

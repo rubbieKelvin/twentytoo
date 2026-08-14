@@ -1,4 +1,4 @@
--- Server-side session store (`01` §10.6): the cookie carries a random
+-- Server-side session store (`00` §6.3): the cookie carries a random
 -- token, the table stores only its SHA-256 hash — a leaked table never
 -- yields usable session credentials.
 --

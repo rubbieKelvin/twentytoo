@@ -23,7 +23,7 @@ pub(super) fn single_value<'a>(form: &'a FormData, name: &str) -> Option<&'a str
         .map(|s| return s.as_str());
 }
 
-/// Flag gate: a resource behind a disabled flag is 404 (`01` §4.2).
+/// Flag gate: a resource behind a disabled flag is 404 (`00` §7.6).
 pub(super) async fn gate_resource<R: Resource>(
     st: &ResourceState<R>,
     resource: &R,
@@ -88,7 +88,7 @@ pub(super) fn record_id<E: serde::Serialize>(entity: &E) -> String {
         .unwrap_or_default();
 }
 
-/// The pager for one page of results (`03` §4.3): numbered pages when the
+/// The pager for one page of results (`00` §5.4): numbered pages when the
 /// source counts cheaply, prev/next otherwise.
 pub(super) fn build_pager<E>(
     result: &Page<E>,

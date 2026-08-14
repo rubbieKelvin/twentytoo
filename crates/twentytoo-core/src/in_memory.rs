@@ -1,6 +1,6 @@
 //! The reference `DataAdapter` implementation: an in-memory store.
 //!
-//! Ships with the framework per `03` §13.1 — it powers the demo app (no
+//! Ships with the framework per `00` §5.9 — it powers the demo app (no
 //! Postgres required), the test suite, and is the proof that the trait
 //! contract is implementable as specified. Every default and every
 //! capability is exercised against it in CI.

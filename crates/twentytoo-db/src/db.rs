@@ -27,7 +27,7 @@ impl Db {
         return &self.pool;
     }
 
-    /// Apply all pending migrations in order (`01` §10.5).
+    /// Apply all pending migrations in order (`00` §9).
     pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
         return MIGRATOR.run(&self.pool).await;
     }

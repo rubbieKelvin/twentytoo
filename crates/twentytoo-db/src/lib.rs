@@ -10,8 +10,8 @@
 //! `tests/db.rs` and run against `DATABASE_URL`.
 //!
 //! The generic per-resource `SqlxAdapter` for user entities is a later
-//! slice (`03-data-adapter.md` §10); this crate covers only the
-//! framework-owned tables (`01` §10.5).
+//! slice (`00` §11); this crate covers only the
+//! framework-owned tables (`00` §9).
 
 #![warn(missing_docs)]
 

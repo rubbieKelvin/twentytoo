@@ -1,4 +1,4 @@
--- Core identity: the authenticated principal (`00-init` §5.1).
+-- Core identity: the authenticated principal (`00` §6.1).
 --
 -- Emails are stored lowercase; the access layer normalizes on write and
 -- lookup. `password_hash` is NULL until the user sets one (invite flow) —

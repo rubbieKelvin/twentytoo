@@ -1,4 +1,4 @@
--- Groups: the grouping boundary (`00-init` §5.1). Users join groups
+-- Groups: the grouping boundary (`00` §6.1). Users join groups
 -- through `group_members` (many-to-many — a user belongs to any number of
 -- groups); groups hold roles through `group_roles` (see
 -- `0004_roles_permissions.sql`), which every member inherits.

@@ -6,8 +6,8 @@ use parking_lot::RwLock;
 
 /// In-memory flag state.
 ///
-/// A flag that was never `set` is **off** — the conservative reading (`05`
-/// §6: "a non-existent flag → false"). `set` is the whole API this slice
+/// A flag that was never `set` is **off** — the conservative reading (`00`
+/// §7.6: "a non-existent flag → false"). `set` is the whole API this slice
 /// needs; targeting strategies land with the flags slice.
 #[derive(Default)]
 pub struct FlagService {

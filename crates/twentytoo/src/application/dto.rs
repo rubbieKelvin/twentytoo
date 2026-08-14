@@ -1,6 +1,6 @@
 //! View models: the serializable per-resource render context.
 //!
-//! The view layer touches entities only as serialized JSON (`03` §3.1);
+//! The view layer touches entities only as serialized JSON (`00` §4);
 //! these models are what the templates actually see. Field visibility
 //! (`visible_to`), editability (`editable_by`), and policy gates are
 //! applied here, per actor, before anything reaches a template.
@@ -121,7 +121,7 @@ pub struct PageLink {
     pub url: String,
 }
 
-/// The pager: exactly one of two modes (`03` §4.3).
+/// The pager: exactly one of two modes (`00` §5.4).
 #[derive(Clone, Debug, Serialize)]
 pub struct PagerView {
     /// `"numbered"` when the source counts cheaply, else `"prevnext"`.

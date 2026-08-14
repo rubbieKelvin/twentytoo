@@ -121,7 +121,7 @@ Rules:
    readable as separate lines. Break long tags at natural boundaries and keep
    the indentation meaningful.
 3. **Comments explain why, not what.** Use `{# #}` only for non-obvious intent,
-   decisions, or a pointer to a brainstorm section (`05 §…`), exactly like the
+   decisions, or a pointer to a brainstorm section (`00 §…`), exactly like the
    existing templates. Don't restate the markup.
 4. **Keep logic out of templates.** A template that grows an `{% if %}`
    decision tree over data shape, or builds strings with `~`, is doing Rust's

@@ -54,9 +54,11 @@ impl CodeSender for TestCodeSender {
     }
 }
 
-/// Connect to `DATABASE_URL`, creating and migrating the database on first
-/// use — copied from the `twentytoo-db` test helper.
-async fn connect_test_db() -> Option<Db> {
+/// Connect to `DATABASE_URL`, creating the database on first use —
+/// copied from the `twentytoo-db` test helper. Returns the URL (for the
+/// builder) and the pool (for direct audit queries); migrations run when
+/// the app builds.
+async fn connect_test_db() -> Option<(String, Db)> {
     let url = match std::env::var("DATABASE_URL") {
         Ok(url) => url,
         Err(_) => {
@@ -72,8 +74,7 @@ async fn connect_test_db() -> Option<Db> {
         }
         Err(e) => panic!("cannot connect to DATABASE_URL: {e}"),
     };
-    db.migrate().await.expect("migrations apply");
-    return Some(db);
+    return Some((url, db));
 }
 
 /// Create the database named in `url` via the `postgres` maintenance
@@ -135,10 +136,12 @@ fn admin_config(email: &str) -> AuthConfig {
     };
 }
 
-/// Build the app with auth against `db`, capturing codes in `sender`.
-async fn build_app(db: Db, config: AuthConfig, sender: Box<dyn CodeSender>) -> Router<()> {
+/// Build the app with auth against `db_url`, capturing codes in `sender`.
+/// The builder connects and migrates at boot.
+async fn build_app(db_url: &str, config: AuthConfig, sender: Box<dyn CodeSender>) -> Router<()> {
     return Twentytoo::builder()
-        .db(db)
+        .db(db_url)
+        .migrate()
         .auth(config)
         .code_sender(sender)
         .build()
@@ -262,11 +265,11 @@ async fn audit_count(db: &Db, resource: &str, action: &str, actor_email: Option<
 
 #[tokio::test]
 async fn unauthenticated_get_redirects_to_login() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, _db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("boot");
-    let app = build_app(db, admin_config(&admin), Box::new(ConsoleSenderStub)).await;
+    let app = build_app(&url, admin_config(&admin), Box::new(ConsoleSenderStub)).await;
 
     let (status, _, headers) = send(&app, "GET", "/", None, None).await;
     assert_eq!(status, StatusCode::SEE_OTHER);
@@ -287,16 +290,11 @@ impl CodeSender for ConsoleSenderStub {
 
 #[tokio::test]
 async fn email_then_password_login_sets_session_cookie() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("login");
-    let app = build_app(
-        db.clone(),
-        admin_config(&admin),
-        Box::new(ConsoleSenderStub),
-    )
-    .await;
+    let app = build_app(&url, admin_config(&admin), Box::new(ConsoleSenderStub)).await;
 
     let (status, _, headers) = send(
         &app,
@@ -337,11 +335,11 @@ async fn email_then_password_login_sets_session_cookie() {
 
 #[tokio::test]
 async fn wrong_password_rerenders_without_session() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, _db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("wrongpw");
-    let app = build_app(db, admin_config(&admin), Box::new(ConsoleSenderStub)).await;
+    let app = build_app(&url, admin_config(&admin), Box::new(ConsoleSenderStub)).await;
 
     let (status, _, headers) = send(
         &app,
@@ -369,16 +367,11 @@ async fn wrong_password_rerenders_without_session() {
 
 #[tokio::test]
 async fn unknown_email_without_domain_access_fails() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("noaccount");
-    let app = build_app(
-        db.clone(),
-        admin_config(&admin),
-        Box::new(ConsoleSenderStub),
-    )
-    .await;
+    let app = build_app(&url, admin_config(&admin), Box::new(ConsoleSenderStub)).await;
 
     let unknown = unique_email("nobody");
     let (status, body, _) = send(
@@ -402,7 +395,7 @@ async fn unknown_email_without_domain_access_fails() {
 
 #[tokio::test]
 async fn domain_access_creates_account_by_login_attempt() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("domainadmin");
@@ -410,7 +403,7 @@ async fn domain_access_creates_account_by_login_attempt() {
         allowed_domains: vec!["example.com".to_string()],
         ..admin_config(&admin)
     };
-    let app = build_app(db.clone(), config, Box::new(ConsoleSenderStub)).await;
+    let app = build_app(&url, config, Box::new(ConsoleSenderStub)).await;
 
     let local = format!("domain-{}", Uuid::new_v4().simple());
     let email = format!("{local}@example.com");
@@ -451,7 +444,7 @@ async fn domain_access_creates_account_by_login_attempt() {
 
 #[tokio::test]
 async fn email_confirmation_requires_code_before_password() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, _db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("codeadmin");
@@ -460,7 +453,7 @@ async fn email_confirmation_requires_code_before_password() {
         email_confirmation: true,
         ..admin_config(&admin)
     };
-    let app = build_app(db, config, Box::new(TestCodeSender(sender.clone()))).await;
+    let app = build_app(&url, config, Box::new(TestCodeSender(sender.clone()))).await;
 
     let (status, _, headers) = send(
         &app,
@@ -519,7 +512,7 @@ async fn email_confirmation_requires_code_before_password() {
 
 #[tokio::test]
 async fn wrong_code_locks_token_after_five_attempts() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, _db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("lockadmin");
@@ -528,7 +521,7 @@ async fn wrong_code_locks_token_after_five_attempts() {
         email_confirmation: true,
         ..admin_config(&admin)
     };
-    let app = build_app(db, config, Box::new(TestCodeSender(sender.clone()))).await;
+    let app = build_app(&url, config, Box::new(TestCodeSender(sender.clone()))).await;
 
     let (status, _, headers) = send(
         &app,
@@ -575,16 +568,11 @@ async fn wrong_code_locks_token_after_five_attempts() {
 
 #[tokio::test]
 async fn admin_creates_user_with_audit_entry() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("createadmin");
-    let app = build_app(
-        db.clone(),
-        admin_config(&admin),
-        Box::new(ConsoleSenderStub),
-    )
-    .await;
+    let app = build_app(&url, admin_config(&admin), Box::new(ConsoleSenderStub)).await;
     let session = login(&app, &admin, ADMIN_PASSWORD).await;
 
     let new_email = unique_email("created");
@@ -624,16 +612,11 @@ async fn admin_creates_user_with_audit_entry() {
 
 #[tokio::test]
 async fn user_creation_requires_users_create_permission() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("permadmin");
-    let app = build_app(
-        db.clone(),
-        admin_config(&admin),
-        Box::new(ConsoleSenderStub),
-    )
-    .await;
+    let app = build_app(&url, admin_config(&admin), Box::new(ConsoleSenderStub)).await;
 
     // A second account with no roles: may log in, may not create users.
     let plain = unique_email("plain");
@@ -659,16 +642,11 @@ async fn user_creation_requires_users_create_permission() {
 
 #[tokio::test]
 async fn logout_clears_session() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("logoutadmin");
-    let app = build_app(
-        db.clone(),
-        admin_config(&admin),
-        Box::new(ConsoleSenderStub),
-    )
-    .await;
+    let app = build_app(&url, admin_config(&admin), Box::new(ConsoleSenderStub)).await;
     let session = login(&app, &admin, ADMIN_PASSWORD).await;
 
     let (status, _, headers) = send(&app, "POST", "/logout", None, Some(&session)).await;
@@ -690,16 +668,11 @@ async fn logout_clears_session() {
 
 #[tokio::test]
 async fn self_disable_is_rejected() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("selfadmin");
-    let app = build_app(
-        db.clone(),
-        admin_config(&admin),
-        Box::new(ConsoleSenderStub),
-    )
-    .await;
+    let app = build_app(&url, admin_config(&admin), Box::new(ConsoleSenderStub)).await;
     let session = login(&app, &admin, ADMIN_PASSWORD).await;
 
     let user = db
@@ -729,17 +702,17 @@ async fn self_disable_is_rejected() {
 
 #[tokio::test]
 async fn bootstrap_is_idempotent() {
-    let Some(db) = connect_test_db().await else {
+    let Some((url, db)) = connect_test_db().await else {
         return;
     };
     let admin = unique_email("twiceadmin");
     let config = admin_config(&admin);
 
-    let first = build_app(db.clone(), config.clone(), Box::new(ConsoleSenderStub)).await;
+    let first = build_app(&url, config.clone(), Box::new(ConsoleSenderStub)).await;
     drop(first);
     // A second boot against the same database succeeds without duplicating
     // the framework rows.
-    let second = build_app(db.clone(), config, Box::new(ConsoleSenderStub)).await;
+    let second = build_app(&url, config, Box::new(ConsoleSenderStub)).await;
     drop(second);
 
     for code in ["users.view", "users.create", "users.update"] {
