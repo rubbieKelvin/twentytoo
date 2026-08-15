@@ -1,17 +1,18 @@
-{# The generated list page (01 §8.3): a thin wrapper around the #list
-   fragment, which htmx swaps on search/filter/sort/pagination. #}
+{# The generated list page (01-ui-kit §8.3): page header + the #list
+   partial. Search, filter, sort, and pagination are all plain HTTP —
+   the full page reloads with the new query string. #}
 {% extends "layout/base.html.j2" %}
 
 {% block title %}{{ resource.label }} — Twentytoo{% endblock %}
 
-{% block context %}{{ resource.label }}{% endblock %}
+{% block page_title %}{{ resource.label }}{% endblock %}
+
+{% block page_actions %}
+  {% if resource.can_create %}
+    <a href="/resources/{{ resource.key }}/new" class="btn btn-primary">{{ icon("plus", 16) }} New {{ resource.label }}</a>
+  {% endif %}
+{% endblock %}
 
 {% block content %}
-<div class="resource-header">
-  <h1>{{ resource.label }}</h1>
-  {% if resource.can_create %}
-    <a href="/resources/{{ resource.key }}/new" class="btn btn--primary">{{ icon("plus", 16) }} New {{ resource.label }}</a>
-  {% endif %}
-</div>
 {% include "partials/list.html.j2" %}
 {% endblock %}

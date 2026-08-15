@@ -33,7 +33,7 @@ mod mutations;
 mod static_files;
 pub mod users;
 
-pub use crate::presentation::extractors::{FormData, ListParams};
+pub use crate::presentation::extractors::{Flash, FormData, ListParams};
 pub use detail::detail_handler;
 
 pub use forms::{create_form_handler, edit_form_handler};

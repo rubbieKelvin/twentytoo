@@ -15,13 +15,13 @@ use crate::application::query::build_filter;
 use crate::shared::errors::AppError;
 
 use super::helpers::{build_pager, form_action, gate_resource};
-use super::{ListParams, ResourceState};
+use super::{Flash, ListParams, ResourceState};
 
 /// GET /resources/{key} — one page of rows.
 pub async fn list_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
-    headers: axum::http::HeaderMap,
+    flash: Flash,
     Query(params): Query<ListParams>,
     Query(extra): Query<HashMap<String, String>>,
 ) -> Result<Response, AppError> {
@@ -30,6 +30,10 @@ pub async fn list_handler<R: Resource>(
     if !resource.policy().can_view_any(&actor) {
         return Err(AppError::Forbidden);
     }
+    // The flash param is feedback plumbing, not view state: it must not
+    // leak into filters, link bases, or the "has filters" flag.
+    let mut extra = extra;
+    extra.remove("flash");
 
     let caps = resource.adapter().capabilities();
     let fields = resource.fields();
@@ -144,21 +148,16 @@ pub async fn list_handler<R: Resource>(
         sort_param => params.sort.clone().unwrap_or_default(),
         link_base => &link_base,
         can_create => resource.policy().can_create(&actor),
+        flash,
         nav => &nav,
         active => resource.key(),
         actor => &actor,
         auth => st.app.auth.is_some(),
     };
-    // htmx list controls (search/filter/sort/pagination) swap the bare
-    // #list fragment; boosted and plain GETs render the full page — the
-    // layout's hx-select picks out #main for boosted swaps (`01-ui-kit`
-    // §8.2/§8.3).
-    let fragment = headers.get("HX-Request").is_some() && headers.get("HX-Boosted").is_none();
-    let name = if fragment {
-        "partials/list.html.j2"
-    } else {
-        "resource/list.html.j2"
-    };
-    let html = st.app.templates.render(name, &ctx)?;
+    // Every list control is a plain HTTP link or form: the response is
+    // always the full page. There is no fragment path anymore — the
+    // search-as-you-type and in-place swaps went away with htmx
+    // (`01-ui-kit` §8).
+    let html = st.app.templates.render("resource/list.html.j2", &ctx)?;
     return Ok(Html(html).into_response());
 }

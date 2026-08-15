@@ -3,45 +3,53 @@
 
 {% block title %}Users — Twentytoo{% endblock %}
 
-{% block context %}Users{% endblock %}
+{% block page_title %}Users{% endblock %}
+
+{% block page_actions %}
+  {% if can_create %}
+    <a href="/users/new" class="btn btn-primary">{{ icon("plus", 16) }} New user</a>
+  {% endif %}
+{% endblock %}
 
 {% block content %}
-<div class="resource-header">
-  <h1>Users</h1>
-  {% if can_create %}
-    <a href="/users/new" class="btn btn--primary">{{ icon("plus", 16) }} New user</a>
-  {% endif %}
-</div>
-
-<div class="table-wrap">
-  <table class="table">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Status</th>
-        <th>Created</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for user in users %}
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
         <tr>
-          <td class="table__identity">
-            <a href="/users/{{ user.id }}"><span class="avatar avatar--sm {{ user.name|avatar_hue }}">{{ user.name|initial }}</span> {{ user.name }}</a>
-          </td>
-          <td>{{ user.email }}</td>
-          <td>{% if user.status == "active" %}<span class="badge badge--success">Active</span>{% else %}<span class="badge badge--warning">Disabled</span>{% endif %}</td>
-          <td>{{ user.created_at|format_datetime("%b %d, %Y") }}</td>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Status</th>
+          <th>Created</th>
         </tr>
-      {% else %}
-        <tr>
-          <td class="empty" colspan="4">
-            <div class="empty__icon">{{ icon("users", 20) }}</div>
-            <p class="empty__title">No users yet</p>
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for user in users %}
+          <tr>
+            <td>
+              <a href="/users/{{ user.id }}" class="d-inline-flex align-items-center gap-2 text-reset text-decoration-none">
+                <span class="avatar avatar-sm {{ user.name|avatar_hue }}">{{ user.name|initial }}</span>
+                {{ user.name }}
+              </a>
+            </td>
+            <td class="text-secondary">{{ user.email }}</td>
+            <td>
+              {% if user.status == "active" %}<span class="badge bg-success-lt">Active</span>{% else %}<span class="badge bg-warning-lt">Disabled</span>{% endif %}
+            </td>
+            <td class="text-secondary">{{ user.created_at|format_datetime("%b %d, %Y") }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="4" class="p-0">
+              <div class="empty">
+                <div class="empty-icon">{{ icon("users", 20) }}</div>
+                <p class="empty-title">No users yet</p>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}

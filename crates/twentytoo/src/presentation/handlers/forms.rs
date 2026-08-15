@@ -10,6 +10,7 @@ use crate::application::dto::ResourceView;
 use crate::application::payload;
 use crate::shared::errors::AppError;
 
+use super::Flash;
 use super::ResourceState;
 use super::helpers::{form_action, gate_resource};
 
@@ -17,6 +18,7 @@ use super::helpers::{form_action, gate_resource};
 pub async fn create_form_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
+    flash: Flash,
 ) -> Result<Response, AppError> {
     let resource = &*st.resource;
     gate_resource(&st, resource).await?;
@@ -33,6 +35,7 @@ pub async fn create_form_handler<R: Resource>(
         values => &Value::Object(Default::default()),
         errors => &payload::FieldErrors::new(),
         form_error => Option::<String>::None,
+        flash,
         nav => &nav,
         active => resource.key(),
         actor => &actor,
@@ -47,6 +50,7 @@ pub async fn edit_form_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
     Path(id): Path<String>,
+    flash: Flash,
 ) -> Result<Response, AppError> {
     let resource = &*st.resource;
     gate_resource(&st, resource).await?;
@@ -70,6 +74,7 @@ pub async fn edit_form_handler<R: Resource>(
         values => &values,
         errors => &payload::FieldErrors::new(),
         form_error => Option::<String>::None,
+        flash,
         nav => &nav,
         active => resource.key(),
         actor => &actor,

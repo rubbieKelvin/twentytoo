@@ -2,42 +2,54 @@
 
 {% block title %}{{ resource.label }} #{{ record.id }} — Twentytoo{% endblock %}
 
-{% block context %}{{ resource.label }}{% endblock %}
+{% block page_title %}{{ resource.label }} #{{ record.id }}{% endblock %}
+
+{% block page_actions %}
+  {% if can_update %}
+    <a class="btn" href="/resources/{{ resource.key }}/{{ record.id }}/edit">{{ icon("edit", 16) }} Edit</a>
+  {% endif %}
+  {% if can_delete %}
+    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#delete-dialog">{{ icon("trash", 16) }} Delete</button>
+  {% endif %}
+{% endblock %}
 
 {% block content %}
-<div class="resource-header">
-  <h1>{{ resource.label }} #{{ record.id }}</h1>
-  <div class="resource-header__actions">
-    {% if can_update %}
-      <a class="btn" href="/resources/{{ resource.key }}/{{ record.id }}/edit">{{ icon("edit", 16) }} Edit</a>
-    {% endif %}
-    {% if can_delete %}
-      <button type="button" class="btn btn--danger" data-tt-dialog-open="#delete-dialog">{{ icon("trash", 16) }} Delete</button>
-    {% endif %}
+<div class="card">
+  <div class="card-body">
+    <div class="datagrid">
+      {% for f in resource.detail_fields %}
+        <div class="datagrid-item">
+          <div class="datagrid-title">{{ f.label }}</div>
+          <div class="datagrid-content">{{ format_field(record[f.name], f.kind) }}</div>
+        </div>
+      {% endfor %}
+    </div>
   </div>
 </div>
 
-<div class="card">
-  <dl class="detail">
-    {% for f in resource.detail_fields %}
-      <div class="detail__row">
-        <dt>{{ f.label }}</dt>
-        <dd>{{ format_field(record[f.name], f.kind) }}</dd>
-      </div>
-    {% endfor %}
-  </dl>
-</div>
-
 {% if can_delete %}
-{# Native dialog (01 §7.9): JS opens it via data-tt-dialog-open; without
-   JS it degrades to an inline confirmation card (html:not(.js) CSS). #}
-<dialog id="delete-dialog" class="dialog" aria-labelledby="delete-dialog-title">
-  <h2 class="dialog__title" id="delete-dialog-title">Delete this {{ resource.label }}?</h2>
-  <p class="dialog__body">This deletes {{ resource.label }} #{{ record.id }}. This cannot be undone.</p>
-  <form method="post" action="/resources/{{ resource.key }}/{{ record.id }}/delete" class="dialog__actions">
-    <button class="btn dialog__cancel" formmethod="dialog">Cancel</button>
-    <button type="submit" class="btn btn--danger btn--solid">Delete</button>
-  </form>
-</dialog>
+{# Delete confirmation (01-ui-kit §7.9): a Tabler/Bootstrap modal. The
+   confirm form posts to the delete route and 303s back to the list with
+   a flash toast. The modal itself requires the Tabler JS bundle — with
+   JS disabled the button is inert and deletion is unavailable (accepted
+   tradeoff of the Tabler migration, §9). #}
+<div class="modal" id="delete-dialog" tabindex="-1">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-status bg-danger"></div>
+      <div class="modal-body text-center py-4">
+        <div class="text-danger mb-2">{{ icon("alert", 24) }}</div>
+        <h3>Delete this {{ resource.label }}?</h3>
+        <div class="text-secondary">This deletes {{ resource.label }} #{{ record.id }}. This cannot be undone.</div>
+      </div>
+      <form method="post" action="/resources/{{ resource.key }}/{{ record.id }}/delete">
+        <div class="modal-footer">
+          <button type="button" class="btn me-auto" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">{{ icon("trash", 16) }} Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endif %}
 {% endblock %}

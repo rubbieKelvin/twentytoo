@@ -1,15 +1,59 @@
-{# The shared Users create/edit form page: a thin wrapper around the form
-   fragment. Create mode: email/name/password. Edit mode: email (fixed),
-   name, status, password (blank = keep current). #}
+{# The shared Users create/edit form page. Create mode: email/name/password.
+   Edit mode: email (fixed), name, status, password (blank = keep current).
+   Validation failures (422) re-render this page with the submitted values
+   kept; error fields carry Bootstrap's `is-invalid` + `invalid-feedback`. #}
 {% extends "layout/base.html.j2" %}
 
 {% block title %}{% if mode == "create" %}New user{% else %}Edit user{% endif %} — Twentytoo{% endblock %}
 
-{% block context %}Users{% endblock %}
+{% block page_title %}{% if mode == "create" %}New user{% else %}Edit user{% endif %}{% endblock %}
 
 {% block content %}
-<div class="resource-header">
-  <h1>{% if mode == "create" %}New user{% else %}Edit user{% endif %}</h1>
-</div>
-{% include "partials/users-form.html.j2" %}
+{% if form_error %}
+  <div class="alert alert-danger" role="alert">{{ form_error }}</div>
+{% endif %}
+<form method="post" class="card" action="{% if mode == "create" %}/users/new{% else %}/users/{{ record_id }}{% endif %}">
+  <div class="card-body">
+    {% if mode == "create" %}
+      <div class="mb-3">
+        <label class="form-label" for="f-email">Email <span class="text-danger">*</span></label>
+        <input name="email" id="f-email" type="email" class="form-control{% if errors.email %} is-invalid{% endif %}" required value="{{ values.email|default('') }}">
+        {% if errors.email %}<div class="invalid-feedback">{{ errors.email }}</div>{% endif %}
+      </div>
+    {% else %}
+      <div class="mb-3">
+        <label class="form-label">Email</label>
+        <p class="form-control-plaintext">{{ email }}</p>
+      </div>
+    {% endif %}
+
+    <div class="mb-3">
+      <label class="form-label" for="f-name">Name <span class="text-danger">*</span></label>
+      <input name="name" id="f-name" type="text" class="form-control{% if errors.name %} is-invalid{% endif %}" required value="{{ values.name|default('') }}">
+      {% if errors.name %}<div class="invalid-feedback">{{ errors.name }}</div>{% endif %}
+    </div>
+
+    {% if mode == "edit" %}
+      <div class="mb-3">
+        <label class="form-label" for="f-status">Status</label>
+        <select name="status" id="f-status" class="form-select{% if errors.status %} is-invalid{% endif %}">
+          <option value="active" {% if values.status|default('active') == "active" %}selected{% endif %}>Active</option>
+          <option value="disabled" {% if values.status|default('active') == "disabled" %}selected{% endif %}>Disabled</option>
+        </select>
+        {% if errors.status %}<div class="invalid-feedback">{{ errors.status }}</div>{% endif %}
+      </div>
+    {% endif %}
+
+    <div class="mb-3">
+      <label class="form-label" for="f-password">Password{% if mode == "create" %} <span class="text-danger">*</span>{% endif %}</label>
+      <input name="password" id="f-password" type="password" class="form-control{% if errors.password %} is-invalid{% endif %}" {% if mode == "create" %}required{% endif %} autocomplete="new-password">
+      {% if mode == "edit" %}<div class="form-hint">Leave blank to keep the current password.</div>{% endif %}
+      {% if errors.password %}<div class="invalid-feedback">{{ errors.password }}</div>{% endif %}
+    </div>
+  </div>
+  <div class="card-footer d-flex justify-content-end gap-2">
+    <a class="btn btn-link" href="/users">Cancel</a>
+    <button type="submit" class="btn btn-primary">{{ icon("check", 16) }} Save</button>
+  </div>
+</form>
 {% endblock %}

@@ -25,11 +25,11 @@ The measure of success: standing up a new internal tool should require **domain 
 - **Not a public-facing product UI toolkit.** Internal tools only.
 - **Not a headless CMS** — the data model is operational entities.
 - **Not a workflow/automation engine** — no multi-step approval chains, no DAGs.
-- **Not a React/SPA stack** — HTML over the wire; the only client JS is an optional htmx script.
+- **Not a React/SPA stack** — HTML over the wire; the only client JS is the Tabler bundle (Bootstrap components) plus a tiny optional enhancement script.
 
 ## 3. Design principles
 
-- **SSR-first, progressively enhanced.** The dashboard works with JS disabled; htmx-driven partial swaps (sort, filter, search, pagination) are enhancements on top of plain HTTP forms and links (§8.6).
+- **SSR-first, progressively enhanced.** The dashboard works with JS disabled; Tabler's components (modals, dropdowns, toasts) sit on top of plain HTTP forms and links — every navigation is a full page load, and list state (sort, filter, search, pagination) lives entirely in the URL (§8.6).
 - **Convention over configuration for the 80% case; escape hatches for the 20%.** Anything that fits the resource model needs zero boilerplate. Anything that doesn't composes with plain axum: the built router can be nested into a larger app, and custom routes are ordinary axum handlers with access to the same state and templates.
 - **Declarative, not generated.** A resource is defined once as a trait impl — there is no scaffolded code to drift out of sync. The definition *is* the source of truth.
 - **RBAC and audit logging are first-class.** Every view and button renders or doesn't render based on policy; every mutation is logged (§6.5). A page that renders without checking permissions is a bug, not a missing feature.
@@ -273,11 +273,13 @@ Registered once at environment build:
 
 The environment is built once at startup in three steps: (1) built-ins are compiled into the binary via `build.rs` (`minijinja_embed::embed_templates!`) — **invalid syntax fails the build, not the first request**; (2) user templates from the override directory are registered by name and **replace** built-ins; (3) a path loader catches templates that exist only in the user's directory. The env is `Send + Sync`, built once, shared as `Arc` — the same env renders every handler and any custom page. A boot check (`get_template` on every `BUILTIN_TEMPLATES` name) catches missing or mistyped references before the first request; CI renders every built-in against fixture data.
 
-### 8.6 Progressive enhancement with htmx
+### 8.6 SSR-first rendering with Tabler
 
-Built-in templates carry htmx attributes: sortable headers, the filter form, the search box (debounced), and pagination all re-fetch the list and swap only the `#resource-table` target. With JS disabled every control degrades to plain HTTP forms and links — full-page navigation. The framework owns its static assets: `web/static/` (the stylesheet plus a vendored htmx build) is embedded by `build.rs` into a name → bytes table and served from the binary at `/static/{*path}` — the handler never touches the filesystem. `StaticFiles` (infrastructure) does the lookup and maps extensions to content types; unknown names answer 404. `BUILTIN_ASSETS` lists every asset the built-in templates reference, and the boot check verifies each one is embedded. Nothing in the framework depends on htmx — users can drop or replace it.
+The client stack is the vendored Tabler 1.4.0 bundle: `tabler.min.css` + `tabler.min.js` (Bootstrap components and Tabler behaviors, served from the binary like every other asset) plus a tiny `app.js` enhancement script. There is no htmx and no partial-swap protocol: every navigation is a full page load. List controls are plain HTTP — the toolbar is a GET form (search + filters), sort headers and pagination are links, and all of that state lives in the URL query string. Mutations are POST forms that 303 to their destination carrying a `?flash=<kind>:<message>` param; the layout renders it as a Tabler toast on the landed page (the `Flash` extractor in `presentation/extractors.rs` parses it, and `app.js` hands the toast to the Tabler API for autohide). Modal confirmations (delete) and menus use Tabler's `data-bs-*` attributes and require the JS bundle; forms and links never do.
 
-The design language and UI kit — tokens, CSS architecture, component specs, interaction patterns — live in `01-ui-kit.md`; §8's templates and assets render against that contract.
+The framework owns its static assets: `web/static/` (the vendored Tabler bundles plus `app.js`) is embedded by `build.rs` into a name → bytes table and served from the binary at `/static/{*path}` — the handler never touches the filesystem. `StaticFiles` (infrastructure) does the lookup and maps extensions to content types; unknown names answer 404. `BUILTIN_ASSETS` lists every asset the built-in templates reference, and the boot check verifies each one is embedded. Nothing in the framework depends on a CDN — users can re-vendor a newer Tabler or swap the shell wholesale.
+
+The design language and UI kit — the Tabler class contract, component specs, interaction patterns — live in `01-ui-kit.md`; §8's templates and assets render against that contract.
 
 ## 9. The database layer (`twentytoo-db`)
 
@@ -315,7 +317,7 @@ Named in the code as arriving later; the contracts are already in place where no
 
 Concepts from earlier brainstorms that were never built and are no longer part of the design intent:
 
-- **SSE broadcasting / live updates, notifications, saved filters, scheduled tasks, API keys, per-user dashboard customization, record comments, import wizard (CSV/Excel mapping), dark mode, i18n, global search** — all considered; none shipped, none required by anything that exists. (Theming tokens were dropped here but landed in `01-ui-kit.md` as the light-only `--tt-*` set; dark mode itself stays dropped.)
+- **SSE broadcasting / live updates, notifications, saved filters, scheduled tasks, API keys, per-user dashboard customization, record comments, import wizard (CSV/Excel mapping), dark mode, i18n, global search** — all considered; none shipped, none required by anything that exists. (Theming landed in `01-ui-kit.md` on Tabler's `--tblr-*` variables; dark mode itself stays dropped.)
 - **Custom `Page` primitive** — the escape hatch is plain axum (`into_router()` + custom handlers over the same state/templates); no dedicated page API.
 - **Proc-macro DSL and derive macros** — rejected; the builder + `field!`/`fields!` `macro_rules!` macros keep standard Rust tooling working and the surface iteration-free.
 - **Workflow/approval chains, drag-and-drop builders, public-facing portals, native mobile apps, GraphQL APIs** — non-goals.
@@ -335,4 +337,4 @@ Concepts from earlier brainstorms that were never built and are no longer part o
 | Validation timing | Fail at boot | `build()` validates identifiers, templates, and auth preconditions before serving |
 | View-layer data | Entities as serialized JSON only | The engine treats typed and `serde_json::Value` entities identically |
 | Errors | Hand-rolled enums, `Display` + `source()` | No thiserror/anyhow anywhere |
-| Client-side JS | Optional htmx + one optional <2KB vanilla-JS enhancement script | SSR-first; everything degrades to plain HTTP; the JS policy and ceiling live in `01-ui-kit.md` §9 |
+| Client-side JS | Vendored Tabler bundle (Bootstrap components) + one tiny optional `app.js` | SSR-first; every navigation is plain HTTP; Tabler components (modals, dropdowns, toasts) ride on top; the JS policy lives in `01-ui-kit.md` §9 |

@@ -4,63 +4,100 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Twentytoo{% endblock %}</title>
-{# Design system (01-ui-kit): tokens → base → layout → components →
-   utilities, all embedded in the binary. #}
-<link rel="stylesheet" href="/static/css/tokens.css">
-<link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/layout.css">
-<link rel="stylesheet" href="/static/css/components.css">
-<link rel="stylesheet" href="/static/css/utilities.css">
-{# htmx upgrades every control to a partial swap; without it (or without
-   the enhancement script) everything degrades to plain HTTP (01 §8.1). #}
-<script src="/static/js/htmx.min.js" defer></script>
+{# The Tabler 1.4 shell (01-ui-kit): one vendored stylesheet, one
+   vendored JS bundle (Bootstrap components + Tabler behaviors), and the
+   small enhancement script. All embedded in the binary. #}
+<link rel="stylesheet" href="/static/css/tabler.min.css">
+<script src="/static/js/tabler.min.js" defer></script>
 <script src="/static/js/app.js" defer></script>
 </head>
 <body>
-<div class="shell">
-  <aside class="sidebar">
-    <a class="sidebar__brand" href="/">{{ icon("cube", 20) }}<span class="sidebar__brand-name">Twentytoo</span></a>
-    {# Boosted nav: swap the response's #main in place of the current one
-       (outerHTML — innerHTML would nest them) and keep the shell. #}
-    <nav class="sidebar__nav" hx-boost="true" hx-select="#main" hx-target="#main" hx-swap="outerHTML show:window:top">
-      <a href="/" {% if active == "home" %}class="is-active"{% endif %}>{{ icon("home", 16) }}<span class="sidebar__label">Home</span></a>
-      {% for item in nav %}
-        <a href="/resources/{{ item.key }}" {% if active == item.key %}class="is-active"{% endif %}>{{ icon(item.icon, 16) }}<span class="sidebar__label">{{ item.label }}</span></a>
-      {% endfor %}
-    </nav>
-    <div class="sidebar__footer">
-      <button type="button" class="sidebar__collapse" data-tt-sidebar-toggle aria-label="Toggle sidebar">{{ icon("chevron-left", 16) }}</button>
+<div class="page">
+  {# Vertical sidebar (01-ui-kit §6): fixed 15rem rail on md+ screens,
+     off-canvas drawer below, driven by Bootstrap collapse. Every link
+     is a plain HTTP navigation — no SPA shell. #}
+  <aside class="navbar navbar-vertical navbar-expand-md" data-bs-theme="dark">
+    <div class="container">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <h1 class="navbar-brand navbar-brand-autodark">
+        <a href="/" class="d-inline-flex align-items-center gap-2 text-decoration-none">{{ icon("cube", 20) }}<span>Twentytoo</span></a>
+      </h1>
+      <div class="collapse navbar-collapse" id="sidebar-menu">
+        <ul class="navbar-nav pt-lg-3">
+          <li class="nav-item{% if active == "home" %} active{% endif %}">
+            <a class="nav-link" href="/">
+              <span class="nav-link-icon">{{ icon("home", 16) }}</span>
+              <span class="nav-link-title">Home</span>
+            </a>
+          </li>
+          {% for item in nav %}
+            <li class="nav-item{% if active == item.key %} active{% endif %}">
+              <a class="nav-link" href="/resources/{{ item.key }}">
+                <span class="nav-link-icon">{{ icon(item.icon, 16) }}</span>
+                <span class="nav-link-title">{{ item.label }}</span>
+              </a>
+            </li>
+          {% endfor %}
+          {# The actor menu: pinned to the rail bottom. Sign-out stays a
+             plain form POST; the menu itself needs the Tabler bundle. #}
+          <li class="nav-item dropdown mt-auto">
+            <a href="#" class="nav-link d-flex lh-1 text-reset p-0 gap-2" data-bs-toggle="dropdown" aria-label="Open user menu">
+              <span class="avatar avatar-sm {{ actor.email|avatar_hue }}">{{ actor.email|initial }}</span>
+              <span class="nav-link-title text-truncate">{{ actor.email }}</span>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end">
+              {% if auth %}
+                <form method="post" action="/logout">
+                  <button type="submit" class="dropdown-item text-danger">{{ icon("logout", 16) }} Sign out</button>
+                </form>
+              {% else %}
+                <span class="dropdown-item text-secondary">{{ actor.email }}</span>
+              {% endif %}
+            </div>
+          </li>
+        </ul>
+      </div>
     </div>
   </aside>
-  <div class="shell__body">
-    <header class="topbar">
-      <button type="button" class="topbar__menu" data-tt-sidebar-toggle aria-label="Open navigation">{{ icon("more-horizontal", 18) }}</button>
-      <div class="topbar__context">{% block context %}{% endblock %}</div>
-      <details class="menu menu--actor" data-tt-menu>
-        <summary class="menu__trigger">
-          <span class="avatar avatar--sm {{ actor.email|avatar_hue }}">{{ actor.email|initial }}</span>
-          <span class="menu__name">{{ actor.email }}</span>
-          {{ icon("chevron-down", 12) }}
-        </summary>
-        <div class="menu__panel">
-          {% if auth %}
-            <form method="post" action="/logout">
-              <button type="submit" class="menu__item menu__item--danger">{{ icon("logout", 16) }} Sign out</button>
-            </form>
-          {% else %}
-            <div class="menu__item menu__item--static">{{ icon("users", 16) }} {{ actor.email }}</div>
-          {% endif %}
+  <div class="page-wrapper">
+    <div class="page-header d-print-none">
+      <div class="container-xl">
+        <div class="row g-2 align-items-center">
+          <div class="col">
+            <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
+          </div>
+          <div class="col-auto ms-auto">
+            <div class="btn-list">{% block page_actions %}{% endblock %}</div>
+          </div>
         </div>
-      </details>
-    </header>
-    {# Links and forms inside main are boosted the same way; controls with
-       their own hx-get/hx-post override the boost. #}
-    <main id="main" hx-boost="true" hx-select="#main" hx-target="#main" hx-swap="outerHTML show:window:top">
-      {% block content %}{% endblock %}
-    </main>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="container-xl">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
   </div>
 </div>
-{# Mutation feedback arrives here via hx-swap-oob (01 §7.10). #}
-<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+{# Mutation feedback: the server 303s with a `?flash=` param; this toast
+   renders on the landed page and app.js hands it to the Tabler API so
+   autohide and the close button work (01-ui-kit §7.9). #}
+{% if flash and flash.message %}
+<div class="toast-container position-fixed top-0 end-0 p-3">
+  <div class="toast show" role="status" aria-live="polite" aria-atomic="true" data-bs-toggle="toast" data-bs-autohide="true" data-bs-delay="4000">
+    <div class="toast-body d-flex align-items-center gap-2">
+      {% if flash.kind == "danger" %}
+        <span class="text-danger">{{ icon("alert", 16) }}</span>
+      {% else %}
+        <span class="text-success">{{ icon("check", 16) }}</span>
+      {% endif %}
+      <span>{{ flash.message }}</span>
+      <button type="button" class="btn-close ms-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+{% endif %}
 </body>
 </html>

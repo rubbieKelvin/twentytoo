@@ -1,39 +1,51 @@
 {# Renders exactly one pager: numbered pages when the source can count
    cheaply (Page.total: Some), prev/next otherwise (00 §5.4). Every link
-   swaps the #list fragment and pushes the URL (01 §8.4); their own
-   hx-select="#list" overrides the boosted <main>'s inherited
-   hx-select="#main", which would find nothing in a fragment response. #}
+   is a plain HTTP navigation preserving the query string (01-ui-kit
+   §7.8). Disabled edges render as `.page-item.disabled` spans so the
+   layout never shifts. #}
 {% if pager.mode == "numbered" and pager.total_pages > 1 %}
-<nav class="pagination" aria-label="Pagination">
-  {% if pager.prev_url %}
-    <a href="{{ pager.prev_url }}" hx-get="{{ pager.prev_url }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list" aria-label="Previous page">{{ icon("chevron-left", 14) }}</a>
-  {% else %}
-    <span class="off" aria-hidden="true">{{ icon("chevron-left", 14) }}</span>
-  {% endif %}
-  {% for link in pager.page_links %}
-    {% if link.page == pager.current %}
-      <span class="current" aria-current="page">{{ link.page }}</span>
-    {% else %}
-      <a href="{{ link.url }}" hx-get="{{ link.url }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list">{{ link.page }}</a>
-    {% endif %}
-  {% endfor %}
-  {% if pager.next_url %}
-    <a href="{{ pager.next_url }}" hx-get="{{ pager.next_url }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list" aria-label="Next page">{{ icon("chevron-right", 14) }}</a>
-  {% else %}
-    <span class="off" aria-hidden="true">{{ icon("chevron-right", 14) }}</span>
-  {% endif %}
+<nav class="ms-auto" aria-label="Pagination">
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item{% if not pager.prev_url %} disabled{% endif %}">
+      {% if pager.prev_url %}
+        <a class="page-link" href="{{ pager.prev_url }}" aria-label="Previous page">{{ icon("chevron-left", 16) }}</a>
+      {% else %}
+        <span class="page-link" aria-hidden="true">{{ icon("chevron-left", 16) }}</span>
+      {% endif %}
+    </li>
+    {% for link in pager.page_links %}
+      {% if link.page == pager.current %}
+        <li class="page-item active"><span class="page-link" aria-current="page">{{ link.page }}</span></li>
+      {% else %}
+        <li class="page-item"><a class="page-link" href="{{ link.url }}">{{ link.page }}</a></li>
+      {% endif %}
+    {% endfor %}
+    <li class="page-item{% if not pager.next_url %} disabled{% endif %}">
+      {% if pager.next_url %}
+        <a class="page-link" href="{{ pager.next_url }}" aria-label="Next page">{{ icon("chevron-right", 16) }}</a>
+      {% else %}
+        <span class="page-link" aria-hidden="true">{{ icon("chevron-right", 16) }}</span>
+      {% endif %}
+    </li>
+  </ul>
 </nav>
 {% elif pager.mode == "prevnext" and (pager.prev_url or pager.next_url) %}
-<nav class="pagination" aria-label="Pagination">
-  {% if pager.prev_url %}
-    <a href="{{ pager.prev_url }}" hx-get="{{ pager.prev_url }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list" aria-label="Previous page">{{ icon("chevron-left", 14) }} Prev</a>
-  {% else %}
-    <span class="off">Prev</span>
-  {% endif %}
-  {% if pager.next_url %}
-    <a href="{{ pager.next_url }}" hx-get="{{ pager.next_url }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list" aria-label="Next page">Next {{ icon("chevron-right", 14) }}</a>
-  {% else %}
-    <span class="off">Next</span>
-  {% endif %}
+<nav class="ms-auto" aria-label="Pagination">
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item{% if not pager.prev_url %} disabled{% endif %}">
+      {% if pager.prev_url %}
+        <a class="page-link" href="{{ pager.prev_url }}" aria-label="Previous page">{{ icon("chevron-left", 16) }} Prev</a>
+      {% else %}
+        <span class="page-link" aria-hidden="true">{{ icon("chevron-left", 16) }} Prev</span>
+      {% endif %}
+    </li>
+    <li class="page-item{% if not pager.next_url %} disabled{% endif %}">
+      {% if pager.next_url %}
+        <a class="page-link" href="{{ pager.next_url }}" aria-label="Next page">Next {{ icon("chevron-right", 16) }}</a>
+      {% else %}
+        <span class="page-link" aria-hidden="true">Next {{ icon("chevron-right", 16) }}</span>
+      {% endif %}
+    </li>
+  </ul>
 </nav>
 {% endif %}

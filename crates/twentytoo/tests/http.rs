@@ -180,6 +180,27 @@ async fn post(app: &Router<()>, uri: &str, form: &str) -> (StatusCode, String) {
     return (status, String::from_utf8(body).unwrap());
 }
 
+/// POST and return the `Location` header when the response carries one.
+async fn post_location(app: &Router<()>, uri: &str, form: &str) -> Option<String> {
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(uri)
+                .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(form.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    return res
+        .headers()
+        .get(axum::http::header::LOCATION)
+        .and_then(|v| return v.to_str().ok())
+        .map(|s| return s.to_string());
+}
+
 // ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
@@ -303,6 +324,30 @@ async fn create_inserts_and_redirects_to_detail() {
 }
 
 #[tokio::test]
+async fn create_redirect_carries_a_flash_toast() {
+    let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
+    let app = build_app(WidgetResource::new(adapter.clone())).await;
+
+    let location = post_location(
+        &app,
+        "/resources/widgets",
+        "id=w9&name=Gadget&status=active",
+    )
+    .await
+    .expect("create redirects");
+    assert!(
+        location.contains("/resources/widgets/w9?flash=success%3A"),
+        "redirect carries the flash payload: {location}"
+    );
+
+    // The landed detail page renders the toast.
+    let (status, detail) = get(&app, &location).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(detail.contains("toast show"));
+    assert!(detail.contains("Created Widgets"));
+}
+
+#[tokio::test]
 async fn create_without_required_field_rerenders_form_with_error() {
     let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
     let app = build_app(WidgetResource::new(adapter)).await;
@@ -415,12 +460,12 @@ async fn static_assets_serve_from_the_binary() {
     let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
     let app = build_app(WidgetResource::new(adapter)).await;
 
-    let (status, content_type, body) = get_asset(&app, "/static/css/tokens.css").await;
+    let (status, content_type, body) = get_asset(&app, "/static/css/tabler.min.css").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(content_type.as_deref(), Some("text/css; charset=utf-8"));
-    assert!(body.starts_with(b"/* Twentytoo design tokens"));
+    assert!(body.starts_with(b"@charset \"UTF-8\";"));
 
-    let (status, content_type, _) = get_asset(&app, "/static/js/htmx.min.js").await;
+    let (status, content_type, _) = get_asset(&app, "/static/js/tabler.min.js").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         content_type.as_deref(),
@@ -442,7 +487,8 @@ async fn pages_reference_embedded_assets_not_a_cdn() {
     seed(&adapter, 1);
     let app = build_app(WidgetResource::new(adapter)).await;
     let (_, body) = get(&app, "/resources/widgets").await;
-    assert!(body.contains("/static/js/htmx.min.js"));
+    assert!(body.contains("/static/css/tabler.min.css"));
+    assert!(body.contains("/static/js/tabler.min.js"));
     assert!(body.contains("/static/js/app.js"));
     assert!(!body.contains("unpkg.com"));
 }

@@ -5,12 +5,12 @@
 {% block title %}Sign in | Twentytoo{% endblock %}
 
 {% block content %}
-<h1>Sign in</h1>
-<form method="post" action="/login/email">
-  <div class="field">
-    <label for="email">Email</label>
-    <input name="email" id="email" type="email" required autofocus>
+<h2 class="card-title text-center mb-4">Sign in</h2>
+<form method="post" action="/login/email" autocomplete="off">
+  <div class="mb-3">
+    <label class="form-label" for="email">Email</label>
+    <input name="email" id="email" type="email" class="form-control" required autofocus placeholder="you@example.com">
   </div>
-  <button type="submit" class="btn btn-primary">Continue</button>
+  <button type="submit" class="btn btn-primary w-100">Continue</button>
 </form>
 {% endblock %}

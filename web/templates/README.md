@@ -25,6 +25,12 @@ templates/
 - A **macro** is a parameterized snippet defined in one file and called
   elsewhere.
 
+Every page `extends` `layout/base.html.j2`, which owns the app shell
+(Tabler's vertical navbar + page header + page body) and two per-page
+slots: `page_title` (the header's `<h2>`) and `page_actions` (the header's
+right-hand buttons). Pages fill the slots instead of rendering their own
+headings.
+
 ## Loader & validation model
 
 Three sources, resolved in order (`src/infrastructure/templates.rs::TemplateEngine::new`):
@@ -49,22 +55,23 @@ the binary — the handler never reads the filesystem. Assets live in
 resolved by `StaticFiles` (`src/infrastructure/static_files.rs`), which maps
 file extensions to content types.
 
-The stylesheet is five files loaded in order (01-ui-kit §5.1): `tokens.css`
-(every `--tt-*` design token — the theming surface), `base.css`, `layout.css`,
-`components.css`, `utilities.css`, plus the two scripts: `htmx.min.js`
-(vendored) and `app.js` (the optional enhancement layer). The class names in
-these templates are the design-language contract (01-ui-kit §7): reuse them,
-don't invent siblings. Only `--tt-*` tokens — no raw hex values.
+The stylesheet is the vendored Tabler 1.4.0 bundle (`tabler.min.css`) plus
+the two scripts: `tabler.min.js` (Bootstrap components + Tabler behaviors)
+and `app.js` (the optional enhancement layer — flash toasts). Tabler's
+class names are the design-language contract (01-ui-kit §7): reuse them,
+don't invent siblings; when a component's look needs adjusting, change the
+Tabler SCSS upstream and re-vendor, or add a tiny override to `app.css`.
 
 Rules:
 
 1. A template references an asset as `/static/<name>` with `<name>`
-   relative to `web/static/` (`css/tokens.css`, `js/app.js`).
+   relative to `web/static/` (`css/tabler.min.css`, `js/app.js`).
 2. **When a built-in template references a new asset, add its name to
    `StaticFiles::BUILTIN_ASSETS`** in `src/infrastructure/static_files.rs` —
    the boot check fails if a declared asset is missing from the binary.
-3. Keep assets framework-owned and small; vendored third-party JS (htmx) is
-   checked in under `web/static/js/` rather than loaded from a CDN.
+3. Keep assets framework-owned and small; vendored third-party code
+   (Tabler) is checked in under `web/static/` rather than loaded from a
+   CDN.
 4. Icons render through the `icon(name, size)` function — inline SVG from a
    closed set; adding an icon is a change to `ICON_NAMES`/`icon_paths` in
    `src/infrastructure/templates.rs`.
@@ -101,6 +108,7 @@ Every page receives:
 | `active` | `str` | active nav entry: `"home"` or a resource `key` |
 | `actor` | `Actor` | `id`, `email`, `roles`, `permissions`, `team_id` |
 | `auth` | `bool` | auth configured — gates the sign-out menu item |
+| `flash` | `Flash` | the `?flash=` toast payload; `message` is empty when none |
 
 Per template:
 
@@ -109,9 +117,11 @@ Per template:
 | `dashboard/home.html.j2` | `cards` — `Vec<HomeCard>` (`key`, `label`, `icon`, `count`) |
 | `resource/list.html.j2` + `partials/list.html.j2` | `resource`, `items`, `pager`, `q`, `has_filters`, `sort_param`, `link_base`, `can_create` |
 | `resource/detail.html.j2` | `resource`, `record`, `can_update`, `can_delete` |
-| `resource/form.html.j2` + `partials/form.html.j2` | `resource`, `mode`, `form_action`, `record_id`, `values`, `errors`, `form_error` |
+| `resource/form.html.j2` | `resource`, `mode`, `form_action`, `record_id`, `values`, `errors`, `form_error` |
+| `users/list.html.j2` | `users`, `can_create` |
+| `users/form.html.j2` | `mode`, `values`, `errors`, `form_error`, `record_id`, `email` |
 
-`resource` is a `ResourceView` (`src/view.rs`): `key`, `label`, `columns`,
+`resource` is a `ResourceView` (`src/application/dto.rs`): `key`, `label`, `columns`,
 `detail_fields`, `form_fields`, `filters`, `sortable`, `searchable`. Each
 `FieldView` has `name`, `label`, `kind` (`tag`, `options`, `relation`),
 `required`, `sortable`.
@@ -129,9 +139,9 @@ templates — that is their entire purpose.
 | `can("stores.create")` | `bool` | RBAC check over the `actor` in context |
 | `icon("check", 16)` | safe HTML string | inline SVG from the closed icon set |
 | `format_field(value, kind)` | safe HTML string | one cell/detail value for a field kind |
-| `format_filter(filter)` | safe HTML string | sidebar control for one filter |
-| `form_control(field, values)` | safe HTML string | form widget for one field |
-| `value\|avatar_hue` | string | deterministic `avatar--<hue>` class for a name |
+| `format_filter(filter)` | safe HTML string | toolbar control for one filter |
+| `form_control(field, values, errors)` | safe HTML string | form widget for one field (with `is-invalid` when `errors[name]` exists) |
+| `value\|avatar_hue` | string | deterministic Tabler `bg-*-lt` avatar hue class for a name |
 
 Rules:
 

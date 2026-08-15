@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Twentytoo is an internal-tools dashboard framework: teams declare resources, fields, actions, metrics, pages, and policies instead of writing CRUD code. The design intent lives in two consolidated records: `brainstorms/00-architecture.md` (system design — Rust is the confirmed reference language, MiniJinja for templating) and `brainstorms/01-ui-kit.md` (design language & UI kit: light-only `--tt-*` tokens, component specs, htmx interaction patterns, the vanilla-JS policy).
+Twentytoo is an internal-tools dashboard framework: teams declare resources, fields, actions, metrics, pages, and policies instead of writing CRUD code. The design intent lives in two consolidated records: `brainstorms/00-architecture.md` (system design — Rust is the confirmed reference language, MiniJinja for templating) and `brainstorms/01-ui-kit.md` (design language & UI kit: the vendored Tabler 1.4 design system, component specs, SSR interaction patterns, the JS policy).
 
 The workspace ships the **core contract** (traits + the `InMemoryAdapter` reference implementation), the **HTTP layer** (generic CRUD handlers over axum, a MiniJinja template engine with framework functions, the built-in `.j2` templates, and a builder that assembles the router with boot-time validation), and the **database layer** (PostgreSQL migrations + a typed access layer for the framework-owned tables: users, sessions, groups, roles, permissions, and the append-only audit log). Audit logging, the generic SQLx resource adapter, actions, metrics, and the module system are the deferred slices ("arrive in later slices" — `crates/twentytoo/src/lib.rs`).
 
@@ -37,7 +37,7 @@ HTTP layer (`crates/twentytoo/src/`): `container.rs` (composition root: `Twentyt
 | `crates/twentytoo-core/src/` | The contract: `adapter.rs` (DataAdapter/TxAdapter), `resource.rs`, `field.rs` (+ `field!`/`fields!` macros), `query.rs`, `write.rs`, `actor.rs`, `policy.rs`, `action.rs`, `capabilities.rs`, `aggregation.rs`, `audit.rs`, `error.rs`, `in_memory.rs` |
 | `crates/twentytoo/src/` | The HTTP layer: `container.rs`, `application/` (dto, payload, query, auth), `infrastructure/` (templates, static_files, flags), `presentation/` (handlers, middleware, extractors, registry, state), `shared/` (errors, utils) |
 | `web/templates/` | Built-in `.j2` templates, embedded by `build.rs` (build-time syntax check) |
-| `web/static/` | Built-in static assets (css, vendored htmx), embedded and served at `/static` by the static-file service |
+| `web/static/` | Built-in static assets (vendored Tabler css/js), embedded and served at `/static` by the static-file service |
 | `crates/twentytoo-db/` | The DB layer: `migrations/` (users, groups, sessions, roles, permissions, group assignments, audit log), `entities/` (row shapes: user, group, session, permission, role, audit), `queries/` (typed access: `users`, `groups`, `sessions`, `access` with `load_actor`, `audit`), `db.rs` (`Db` pool + `MIGRATOR`), `error.rs` (`DbError`), `tests/db.rs` (live-Postgres integration) |
 | `crates/twentytoo/examples/demo/` | Demo app: members + stores on `InMemoryAdapter`, behind the real login flow (needs the compose Postgres; admin@example.com / admin1234) |
 | `brainstorms/` | The consolidated design records (`00-architecture.md` system design; `01-ui-kit.md` design language & UI kit); source of truth for intent and decisions |

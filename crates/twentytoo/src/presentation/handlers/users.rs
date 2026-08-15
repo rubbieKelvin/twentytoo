@@ -15,17 +15,18 @@ use uuid::Uuid;
 
 use crate::application::auth::{AuthService, hash_password};
 use crate::application::payload::FieldErrors;
-use crate::presentation::extractors::FormData;
+use crate::presentation::extractors::{Flash, FormData};
 use crate::presentation::state::AppState;
 use crate::shared::errors::AppError;
 
-use super::helpers::{htmx_redirect, is_htmx, single_value};
+use super::helpers::single_value;
 
 /// GET /users — one row per account, with a create link for actors holding
 /// `users.create`.
 pub async fn list_handler(
     State(st): State<AppState>,
     axum::Extension(actor): axum::Extension<Actor>,
+    flash: Flash,
 ) -> Result<Response, AppError> {
     if !actor.can("users.view") {
         return Err(AppError::Forbidden);
@@ -53,6 +54,7 @@ pub async fn list_handler(
     let ctx = context! {
         users => &users,
         can_create,
+        flash,
         nav => &nav,
         active => "users",
         actor => &actor,
@@ -66,7 +68,7 @@ pub async fn list_handler(
 pub async fn create_form(
     State(st): State<AppState>,
     axum::Extension(actor): axum::Extension<Actor>,
-    headers: axum::http::HeaderMap,
+    flash: Flash,
 ) -> Result<Response, AppError> {
     if !actor.can("users.create") {
         return Err(AppError::Forbidden);
@@ -80,7 +82,7 @@ pub async fn create_form(
         FieldErrors::new(),
         None,
         StatusCode::OK,
-        &headers,
+        &flash,
     );
 }
 
@@ -89,7 +91,7 @@ pub async fn create_form(
 pub async fn create_handler(
     State(st): State<AppState>,
     axum::Extension(actor): axum::Extension<Actor>,
-    headers: axum::http::HeaderMap,
+    flash: Flash,
     form: FormData,
 ) -> Result<Response, AppError> {
     if !actor.can("users.create") {
@@ -126,7 +128,7 @@ pub async fn create_handler(
             errors,
             None,
             StatusCode::UNPROCESSABLE_ENTITY,
-            &headers,
+            &flash,
         );
     }
 
@@ -150,7 +152,7 @@ pub async fn create_handler(
                 errors,
                 None,
                 StatusCode::CONFLICT,
-                &headers,
+                &flash,
             );
         }
         Err(e) => return Err(AppError::Data(e.into())),
@@ -176,10 +178,9 @@ pub async fn create_handler(
         .await
         .map_err(|e| return AppError::Data(e.into()))?;
     let location = format!("/users/{}", user.id);
-    if is_htmx(&headers) {
-        return Ok(htmx_redirect(&location, "success", "User created"));
-    }
-    return Ok(Redirect::to(&location).into_response());
+    return Ok(
+        Redirect::to(&Flash::redirect(&location, "success", "User created")).into_response(),
+    );
 }
 
 /// GET /users/{id} — the edit form (name, status, password).
@@ -187,7 +188,7 @@ pub async fn edit_form(
     State(st): State<AppState>,
     axum::Extension(actor): axum::Extension<Actor>,
     Path(id): Path<String>,
-    headers: axum::http::HeaderMap,
+    flash: Flash,
 ) -> Result<Response, AppError> {
     if !actor.can("users.update") {
         return Err(AppError::Forbidden);
@@ -210,7 +211,7 @@ pub async fn edit_form(
         FieldErrors::new(),
         None,
         StatusCode::OK,
-        &headers,
+        &flash,
     );
 }
 
@@ -220,7 +221,7 @@ pub async fn update_handler(
     State(st): State<AppState>,
     axum::Extension(actor): axum::Extension<Actor>,
     Path(id): Path<String>,
-    headers: axum::http::HeaderMap,
+    flash: Flash,
     form: FormData,
 ) -> Result<Response, AppError> {
     if !actor.can("users.update") {
@@ -271,7 +272,7 @@ pub async fn update_handler(
             errors,
             None,
             StatusCode::UNPROCESSABLE_ENTITY,
-            &headers,
+            &flash,
         );
     }
     let status = status.expect("validated: status is active or disabled");
@@ -293,7 +294,7 @@ pub async fn update_handler(
             errors,
             None,
             StatusCode::UNPROCESSABLE_ENTITY,
-            &headers,
+            &flash,
         );
     }
 
@@ -314,10 +315,7 @@ pub async fn update_handler(
             .await
             .map_err(|e| return AppError::Data(e.into()))?;
     }
-    if is_htmx(&headers) {
-        return Ok(htmx_redirect("/users", "success", "User updated"));
-    }
-    return Ok(Redirect::to("/users").into_response());
+    return Ok(Redirect::to(&Flash::redirect("/users", "success", "User updated")).into_response());
 }
 
 /// The shared auth service; the routes only exist when it does.
@@ -336,9 +334,8 @@ fn parse_id(id: &str) -> Result<Uuid, AppError> {
 /// Render the shared create/edit form. `user` supplies the edit-mode facts
 /// (record id, email display); `values` the current field values. The
 /// arguments are the full render input — grouping them into a struct would
-/// just relocate the noise (same shape as `render_form_error`). htmx posts
-/// get the bare form fragment swapped into `#form-region`; plain GETs and
-/// posts get the full page (`01-ui-kit` §8.7).
+/// just relocate the noise (same shape as `render_form_error`). Every
+/// render is the full form page (`01-ui-kit` §8.7).
 #[allow(clippy::too_many_arguments)]
 fn render_user_form(
     st: &AppState,
@@ -349,7 +346,7 @@ fn render_user_form(
     errors: FieldErrors,
     form_error: Option<String>,
     status: StatusCode,
-    headers: &axum::http::HeaderMap,
+    flash: &Flash,
 ) -> Result<Response, AppError> {
     let nav = st.nav_for(actor);
     let record_id = user.map(|u| return u.id.to_string());
@@ -361,16 +358,12 @@ fn render_user_form(
         form_error,
         record_id,
         email,
+        flash,
         nav => &nav,
         active => "users",
         actor,
         auth => st.auth.is_some(),
     };
-    let name = if is_htmx(headers) {
-        "partials/users-form.html.j2"
-    } else {
-        "users/form.html.j2"
-    };
-    let html = st.templates.render(name, &ctx)?;
+    let html = st.templates.render("users/form.html.j2", &ctx)?;
     return Ok((status, Html(html)).into_response());
 }

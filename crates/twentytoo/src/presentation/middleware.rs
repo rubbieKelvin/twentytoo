@@ -94,8 +94,8 @@ mod tests {
         assert!(is_public_path("/login"));
         assert!(is_public_path("/login/code"));
         assert!(is_public_path("/logout"));
-        assert!(is_public_path("/static/css/app.css"));
-        assert!(is_public_path("/static/js/htmx.min.js"));
+        assert!(is_public_path("/static/css/tabler.min.css"));
+        assert!(is_public_path("/static/js/tabler.min.js"));
     }
 
     #[test]

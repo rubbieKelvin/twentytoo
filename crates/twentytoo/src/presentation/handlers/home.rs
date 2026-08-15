@@ -5,6 +5,7 @@ use axum::response::{Html, IntoResponse, Response};
 use minijinja::context;
 use twentytoo_core::Actor;
 
+use crate::presentation::extractors::Flash;
 use crate::presentation::state::AppState;
 use crate::shared::errors::AppError;
 
@@ -12,11 +13,13 @@ use crate::shared::errors::AppError;
 pub async fn home_handler(
     State(app): State<AppState>,
     axum::Extension(actor): axum::Extension<Actor>,
+    flash: Flash,
 ) -> Result<Response, AppError> {
     let cards = app.registry.home_cards(&actor).await;
     let nav = app.nav_for(&actor);
     let ctx = context! {
         cards => &cards,
+        flash,
         nav => &nav,
         active => "home",
         actor => &actor,

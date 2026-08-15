@@ -2,21 +2,22 @@
 
 {% block title %}Home — Twentytoo{% endblock %}
 
-{% block context %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="resource-header">
-  <h1>Dashboard</h1>
-</div>
-<div class="card-grid">
+<div class="row row-cards">
   {% for card in cards %}
-    <a class="card card--hover" href="/resources/{{ card.key }}">
-      <div class="card__icon">{{ icon(card.icon, 20) }}</div>
-      <h2 class="card__title">{{ card.label }}</h2>
-      {% if card.count is not none %}
-        <p class="card__sub">{{ card.count }} records</p>
-      {% endif %}
-    </a>
+    <div class="col-sm-6 col-lg-3">
+      <a class="card card-link text-reset text-decoration-none" href="/resources/{{ card.key }}">
+        <div class="card-body">
+          <div class="text-secondary mb-2">{{ icon(card.icon, 20) }}</div>
+          <h3 class="card-title mb-1">{{ card.label }}</h3>
+          {% if card.count is not none %}
+            <p class="text-secondary mb-0">{{ card.count }} records</p>
+          {% endif %}
+        </div>
+      </a>
+    </div>
   {% endfor %}
 </div>
 {% endblock %}

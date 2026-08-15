@@ -8,6 +8,7 @@ use twentytoo_core::{Actor, Resource};
 use crate::application::dto::{ResourceView, materialize_computed};
 use crate::shared::errors::AppError;
 
+use super::Flash;
 use super::ResourceState;
 use super::helpers::gate_resource;
 
@@ -16,6 +17,7 @@ pub async fn detail_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
     Path(id): Path<String>,
+    flash: Flash,
 ) -> Result<Response, AppError> {
     let resource = &*st.resource;
     gate_resource(&st, resource).await?;
@@ -41,6 +43,7 @@ pub async fn detail_handler<R: Resource>(
         record => &value,
         can_update,
         can_delete,
+        flash,
         nav => &nav,
         active => resource.key(),
         actor => &actor,

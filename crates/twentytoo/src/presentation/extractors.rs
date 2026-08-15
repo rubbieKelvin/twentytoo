@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use axum::extract::RawForm;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::shared::errors::AppError;
 
@@ -53,4 +53,64 @@ pub struct ListParams {
     pub sort: Option<String>,
     /// Search term.
     pub q: Option<String>,
+}
+
+/// A one-shot toast carried by a redirect (`?flash=<kind>:<message>`).
+///
+/// Mutations 303 to their destination with the flash query param; the
+/// base layout renders it as a Tabler toast on the landed page. `kind`
+/// is one of `"success"`, `"danger"`, `"info"` — anything else parses
+/// as an empty flash (no toast). The param is framework-generated, but
+/// it is still request input: never trust it, never render it raw.
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct Flash {
+    /// Toast accent: `"success"`, `"danger"`, or `"info"`.
+    pub kind: String,
+    /// The message; empty when the request carried no flash.
+    pub message: String,
+}
+
+impl Flash {
+    /// The redirect target for a mutation: `location` plus the encoded
+    /// flash payload.
+    pub fn redirect(location: &str, kind: &str, message: &str) -> String {
+        let qs = serde_urlencoded::to_string([("flash", format!("{kind}:{message}"))])
+            .unwrap_or_default();
+        return format!("{location}?{qs}");
+    }
+
+    /// Parse `?flash=<kind>:<message>` out of a query string; a missing,
+    /// malformed, or unknown-kind payload yields an empty flash.
+    fn parse(query: Option<&str>) -> Self {
+        let Some(q) = query else {
+            return Self::default();
+        };
+        let Ok(pairs) = serde_urlencoded::from_str::<HashMap<String, String>>(q) else {
+            return Self::default();
+        };
+        let Some(raw) = pairs.get("flash") else {
+            return Self::default();
+        };
+        let Some((kind, message)) = raw.split_once(':') else {
+            return Self::default();
+        };
+        if !matches!(kind, "success" | "danger" | "info") {
+            return Self::default();
+        }
+        return Self {
+            kind: kind.to_string(),
+            message: message.to_string(),
+        };
+    }
+}
+
+impl<S: Send + Sync> axum::extract::FromRequestParts<S> for Flash {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        return Ok(Self::parse(parts.uri.query()));
+    }
 }

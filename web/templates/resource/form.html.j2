@@ -1,16 +1,30 @@
-{# Shared create/edit form page: a thin wrapper around the form fragment.
-   `mode` is "create" or "edit"; `values` carries the current field values;
-   `errors` maps field names to messages; `form_error` is the entity-level
-   error. #}
+{# Shared create/edit form page. `mode` is "create" or "edit"; `values`
+   carries the current field values; `errors` maps field names to
+   messages; `form_error` is the entity-level error. Validation failures
+   (422) re-render this same page with the submitted values kept. #}
 {% extends "layout/base.html.j2" %}
 
 {% block title %}{% if mode == "create" %}New{% else %}Edit{% endif %} {{ resource.label }} — Twentytoo{% endblock %}
 
-{% block context %}{{ resource.label }}{% endblock %}
+{% block page_title %}{% if mode == "create" %}New{% else %}Edit{% endif %} {{ resource.label }}{% endblock %}
 
 {% block content %}
-<div class="resource-header">
-  <h1>{% if mode == "create" %}New{% else %}Edit{% endif %} {{ resource.label }}</h1>
-</div>
-{% include "partials/form.html.j2" %}
+{% if form_error %}
+  <div class="alert alert-danger" role="alert">{{ form_error }}</div>
+{% endif %}
+<form method="post" action="{{ form_action }}" class="card">
+  <div class="card-body">
+    {% for f in resource.form_fields %}
+      <div class="mb-3">
+        <label class="form-label" for="f-{{ f.name }}">{{ f.label }}{% if f.required %} <span class="text-danger">*</span>{% endif %}</label>
+        {{ form_control(f, values, errors) }}
+        {% if errors[f.name] %}<div class="invalid-feedback">{{ errors[f.name] }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  <div class="card-footer d-flex justify-content-end gap-2">
+    <a class="btn btn-link" href="/resources/{{ resource.key }}{% if mode == "edit" %}/{{ record_id }}{% endif %}">Cancel</a>
+    <button type="submit" class="btn btn-primary">{{ icon("check", 16) }} Save</button>
+  </div>
+</form>
 {% endblock %}

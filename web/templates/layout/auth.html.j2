@@ -4,21 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Twentytoo{% endblock %}</title>
-<link rel="stylesheet" href="/static/css/tokens.css">
-<link rel="stylesheet" href="/static/css/base.css">
-<link rel="stylesheet" href="/static/css/layout.css">
-<link rel="stylesheet" href="/static/css/components.css">
-<link rel="stylesheet" href="/static/css/utilities.css">
+<link rel="stylesheet" href="/static/css/tabler.min.css">
 </head>
 <body>
-<main class="auth-shell">
-  <div class="auth-card">
-    <a class="brand" href="/login">{{ icon("cube", 20) }} Twentytoo</a>
-    {% if error %}
-      <div class="alert alert--error">{{ error }}</div>
-    {% endif %}
-    {% block content %}{% endblock %}
+<div class="page page-center">
+  <div class="container-tight py-4">
+    <div class="text-center mb-4">
+      <a href="/login" class="navbar-brand navbar-brand-autodark">{{ icon("cube", 20) }} Twentytoo</a>
+    </div>
+    <div class="card card-md">
+      <div class="card-body">
+        {% if error %}
+          <div class="alert alert-danger" role="alert">{{ error }}</div>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </div>
+    </div>
   </div>
-</main>
+</div>
 </body>
 </html>

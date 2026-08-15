@@ -28,8 +28,6 @@ pub const BUILTIN_TEMPLATES: &[&str] = &[
     "resource/detail.html.j2",
     "resource/form.html.j2",
     "partials/list.html.j2",
-    "partials/form.html.j2",
-    "partials/users-form.html.j2",
     "partials/pagination.html.j2",
     "auth/email.html.j2",
     "auth/code.html.j2",
@@ -131,10 +129,13 @@ fn icon_paths(name: &str) -> &'static str {
 
 /// One inline SVG icon as a string (used by the `icon` function and by
 /// field formatting).
+///
+/// The markup rides Tabler's `.icon` sizing: the inline
+/// `--tblr-icon-size` override pins the exact pixel size, and the
+/// `width`/`height` attributes are the no-CSS fallback (`01-ui-kit` §7.10).
 fn icon_svg(name: &str, size: usize) -> String {
-    let spin = if name == "spinner" { " icon--spin" } else { "" };
     return format!(
-        "<svg class=\"icon{spin}\" width=\"{size}\" height=\"{size}\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">{}</svg>",
+        "<svg class=\"icon\" style=\"--tblr-icon-size:{size}px\" width=\"{size}\" height=\"{size}\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">{}</svg>",
         icon_paths(name)
     );
 }
@@ -149,15 +150,25 @@ fn icon(name: String, size: Option<u64>) -> Value {
 
 /// The deterministic avatar hue class for a name (`01-ui-kit` §7.3): the
 /// same string always yields the same color, server- and client-free.
+/// The classes are Tabler's soft background hues (`bg-*-lt`), so the
+/// avatar renders as a tinted circle with initials.
 fn avatar_class(name: &str) -> String {
     let mut hash: u32 = 5381;
     for b in name.bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(u32::from(b));
     }
     const HUES: [&str; 9] = [
-        "red", "orange", "green", "teal", "blue", "indigo", "purple", "amber", "gray",
+        "bg-red-lt",
+        "bg-orange-lt",
+        "bg-green-lt",
+        "bg-teal-lt",
+        "bg-blue-lt",
+        "bg-indigo-lt",
+        "bg-purple-lt",
+        "bg-yellow-lt",
+        "bg-secondary-lt",
     ];
-    return format!("avatar--{}", HUES[(hash % 9) as usize]);
+    return HUES[(hash % 9) as usize].to_string();
 }
 
 /// Template filter: `email|avatar_hue` — the avatar hue class for a name.
@@ -278,28 +289,24 @@ fn can(state: &State, permission: String) -> bool {
 fn format_field(value: Value, kind: ViaDeserialize<KindView>) -> Value {
     let kind = &*kind;
     let text = match kind.tag.as_str() {
+        // Numbers and money render as plain text; the list template
+        // right-aligns the cell with `text-end`.
         "currency" => match as_f64(&value) {
-            Some(n) => format!(
-                "<span class=\"u-num\">{}</span>",
-                escape_html(&format_money(n))
-            ),
+            Some(n) => escape_html(&format_money(n)),
             None => escape_html(&value.to_string()),
         },
-        "number" => format!(
-            "<span class=\"u-num\">{}</span>",
-            escape_html(&value.to_string())
-        ),
+        "number" => escape_html(&value.to_string()),
         "datetime" => escape_html(&format_datetime(&value, "%Y-%m-%d %H:%M".to_string())),
         "date" => escape_html(&format_datetime(&value, "%Y-%m-%d".to_string())),
         "boolean" => {
             if value.is_true() {
                 format!(
-                    "<span class=\"bool bool--yes\">{}Yes</span>",
+                    "<span class=\"d-inline-flex align-items-center gap-1 text-success\">{}Yes</span>",
                     icon_svg("check", 14)
                 )
             } else {
                 format!(
-                    "<span class=\"bool bool--no\">{}No</span>",
+                    "<span class=\"d-inline-flex align-items-center gap-1 text-danger\">{}No</span>",
                     icon_svg("x", 14)
                 )
             }
@@ -328,17 +335,18 @@ fn format_field(value: Value, kind: ViaDeserialize<KindView>) -> Value {
 /// One `Badge`/`MultiSelect` value as a soft pill (`01-ui-kit` §7.2). The
 /// semantic class follows the option's position in the declaration —
 /// config order is semantic order; unknown values fall back to neutral.
+/// Classes are Tabler's soft badge variants (`bg-*-lt`).
 fn badge_pill(kind: &KindView, value: Option<&str>) -> String {
     let label = label_for(kind, value);
     let Some(value) = value else {
-        return format!("<span class=\"badge\">{label}</span>");
+        return format!("<span class=\"badge bg-secondary-lt\">{label}</span>");
     };
     let Some(index) = kind.options.iter().position(|o| return o.value == value) else {
-        return format!("<span class=\"badge\">{label}</span>");
+        return format!("<span class=\"badge bg-secondary-lt\">{label}</span>");
     };
-    const SEMANTIC: [&str; 5] = ["accent", "success", "warning", "danger", "info"];
+    const SEMANTIC: [&str; 5] = ["primary", "success", "warning", "danger", "info"];
     let cls = SEMANTIC[index % SEMANTIC.len()];
-    return format!("<span class=\"badge badge--{cls}\">{label}</span>");
+    return format!("<span class=\"badge bg-{cls}-lt\">{label}</span>");
 }
 
 /// A `Relation` value as avatar + id link (`01-ui-kit` §7.3/§11.4). The
@@ -349,15 +357,16 @@ fn relation_link(kind: &KindView, id: &str) -> String {
     let id_esc = escape_html(id);
     let initials = escape_html(&id.chars().take(2).collect::<String>().to_uppercase());
     let avatar = format!(
-        "<span class=\"avatar avatar--sm {}\">{initials}</span>",
+        "<span class=\"avatar avatar-sm {}\">{initials}</span>",
         avatar_class(id)
     );
     let resource_key = escape_html(kind.relation.as_deref().unwrap_or(""));
+    let row = format!("{avatar}<span>{id_esc}</span>");
     if resource_key.is_empty() {
-        return format!("<span class=\"relation\">{avatar}<span>{id_esc}</span></span>");
+        return format!("<span class=\"d-inline-flex align-items-center gap-2\">{row}</span>");
     }
     return format!(
-        "<a class=\"relation\" href=\"/{resource_key}/{id_esc}\">{avatar}<span>{id_esc}</span></a>"
+        "<a class=\"d-inline-flex align-items-center gap-2 text-reset text-decoration-none\" href=\"/{resource_key}/{id_esc}\">{row}</a>"
     );
 }
 
@@ -375,8 +384,10 @@ fn label_for(kind: &KindView, value: Option<&str>) -> String {
     return escape_html(value);
 }
 
-/// Template function: `format_filter(filter)` — the sidebar control for one
-/// filter. Safe string; values and labels escaped internally.
+/// Template function: `format_filter(filter)` — the toolbar control for one
+/// filter. Safe string; values and labels escaped internally. Controls are
+/// Tabler's small `form-select`/`form-control` variants; the toolbar form
+/// submits them on Apply/Enter.
 fn format_filter(filter: ViaDeserialize<FilterView>) -> Value {
     let f = &*filter;
     let name = escape_html(&f.name);
@@ -386,8 +397,9 @@ fn format_filter(filter: ViaDeserialize<FilterView>) -> Value {
         "eq" | "in" | "notin"
             if matches!(f.kind.tag.as_str(), "select" | "badge" | "multiselect") =>
         {
-            let mut out =
-                format!("<label class=\"filter\"><span>{label}</span><select name=\"{name}\">");
+            let mut out = format!(
+                "<div class=\"d-inline-flex align-items-center gap-2\"><span class=\"form-label mb-0\">{label}</span><select class=\"form-select form-select-sm\" name=\"{name}\">"
+            );
             out.push_str(&format!("<option value=\"\">All {label}</option>"));
             for option in &f.kind.options {
                 let selected = if Some(option.value.as_str()) == f.current.as_deref() {
@@ -402,22 +414,22 @@ fn format_filter(filter: ViaDeserialize<FilterView>) -> Value {
                     escape_html(&option.label)
                 ));
             }
-            out.push_str("</select></label>");
+            out.push_str("</select></div>");
             out
         }
         "gt" | "gte" | "lt" | "lte" if matches!(f.kind.tag.as_str(), "number" | "currency") => {
             format!(
-                "<label class=\"filter\"><span>{label}</span><input type=\"number\" name=\"{name}\" value=\"{current}\" placeholder=\"{label}\"></label>"
+                "<div class=\"d-inline-flex align-items-center gap-2\"><span class=\"form-label mb-0\">{label}</span><input class=\"form-control form-control-sm\" type=\"number\" name=\"{name}\" value=\"{current}\" placeholder=\"{label}\"></div>"
             )
         }
         "gt" | "gte" | "lt" | "lte" if matches!(f.kind.tag.as_str(), "date") => {
             format!(
-                "<label class=\"filter\"><span>{label}</span><input type=\"date\" name=\"{name}\" value=\"{current}\"></label>"
+                "<div class=\"d-inline-flex align-items-center gap-2\"><span class=\"form-label mb-0\">{label}</span><input class=\"form-control form-control-sm\" type=\"date\" name=\"{name}\" value=\"{current}\"></div>"
             )
         }
         _ => {
             format!(
-                "<label class=\"filter\"><span>{label}</span><input type=\"text\" name=\"{name}\" value=\"{current}\" placeholder=\"{label}\"></label>"
+                "<div class=\"d-inline-flex align-items-center gap-2\"><span class=\"form-label mb-0\">{label}</span><input class=\"form-control form-control-sm\" type=\"text\" name=\"{name}\" value=\"{current}\" placeholder=\"{label}\"></div>"
             )
         }
     };
@@ -436,26 +448,42 @@ fn value_string(value: &Value) -> String {
         .unwrap_or_else(|| return value.to_string());
 }
 
-/// Template function: `form_control(field, values)` — one form widget.
-/// Safe string; current values escaped internally.
-fn form_control(field: ViaDeserialize<FieldView>, values: Value) -> Value {
+/// Template function: `form_control(field, values, errors)` — one form
+/// widget. Safe string; current values escaped internally. `errors` is
+/// the field-error map; a field with an error gets Bootstrap's
+/// `is-invalid` class so the template's `invalid-feedback` block shows.
+fn form_control(field: ViaDeserialize<FieldView>, values: Value, errors: Value) -> Value {
     let f = &*field;
     let name = escape_html(&f.name);
     let id = format!("f-{name}");
     let current = values.get_attr(&f.name).unwrap_or_default();
+    // `get_attr` answers `Ok(UNDEFINED)` for a missing key: an error
+    // exists only when a defined value is returned.
+    let invalid = if errors
+        .get_attr(&f.name)
+        .map(|v| return !v.is_undefined())
+        .unwrap_or(false)
+    {
+        " is-invalid"
+    } else {
+        ""
+    };
     let html = match f.kind.tag.as_str() {
         "boolean" => {
             let checked = if current.is_true() { " checked" } else { "" };
             format!(
-                "<label class=\"switch\"><input type=\"checkbox\" id=\"{id}\" name=\"{name}\"{checked}></label>"
+                "<label class=\"form-check form-switch\"><input class=\"form-check-input\" type=\"checkbox\" id=\"{id}\" name=\"{name}\"{checked}{invalid}></label>"
             )
         }
         "textarea" | "richtext" => {
             let v = escape_html(&value_string(&current));
-            format!("<textarea id=\"{id}\" name=\"{name}\" rows=\"5\">{v}</textarea>")
+            format!(
+                "<textarea class=\"form-control{invalid}\" id=\"{id}\" name=\"{name}\" rows=\"5\">{v}</textarea>"
+            )
         }
         "select" | "badge" => {
-            let mut out = format!("<select id=\"{id}\" name=\"{name}\">");
+            let mut out =
+                format!("<select class=\"form-select{invalid}\" id=\"{id}\" name=\"{name}\">");
             out.push_str("<option value=\"\"></option>");
             let current_s = current.as_str();
             for option in &f.kind.options {
@@ -479,7 +507,9 @@ fn form_control(field: ViaDeserialize<FieldView>, values: Value) -> Value {
                 .try_iter()
                 .map(|iter| return iter.map(|v| return v.to_string()).collect())
                 .unwrap_or_default();
-            let mut out = format!("<select id=\"{id}\" name=\"{name}\" multiple size=\"4\">");
+            let mut out = format!(
+                "<select class=\"form-select{invalid}\" id=\"{id}\" name=\"{name}\" multiple size=\"4\">"
+            );
             for option in &f.kind.options {
                 let chosen = if selected.iter().any(|s| return s == &option.value) {
                     " selected"
@@ -499,28 +529,34 @@ fn form_control(field: ViaDeserialize<FieldView>, values: Value) -> Value {
         "number" | "currency" => {
             let v = escape_html(&value_string(&current));
             format!(
-                "<input type=\"number\" step=\"any\" id=\"{id}\" name=\"{name}\" value=\"{v}\">"
+                "<input class=\"form-control{invalid}\" type=\"number\" step=\"any\" id=\"{id}\" name=\"{name}\" value=\"{v}\">"
             )
         }
         "date" => {
             let v = escape_html(&value_string(&current));
-            format!("<input type=\"date\" id=\"{id}\" name=\"{name}\" value=\"{v}\">")
+            format!(
+                "<input class=\"form-control{invalid}\" type=\"date\" id=\"{id}\" name=\"{name}\" value=\"{v}\">"
+            )
         }
         "datetime" => {
             let v = escape_html(&value_string(&current));
             format!(
-                "<input type=\"text\" id=\"{id}\" name=\"{name}\" value=\"{v}\" placeholder=\"2026-08-13T10:30:00Z\">"
+                "<input class=\"form-control{invalid}\" type=\"text\" id=\"{id}\" name=\"{name}\" value=\"{v}\" placeholder=\"2026-08-13T10:30:00Z\">"
             )
         }
         "email" => {
             let v = escape_html(&value_string(&current));
-            format!("<input type=\"email\" id=\"{id}\" name=\"{name}\" value=\"{v}\">")
+            format!(
+                "<input class=\"form-control{invalid}\" type=\"email\" id=\"{id}\" name=\"{name}\" value=\"{v}\">"
+            )
         }
         // text, json, relation, computed — plain text input; file/image
         // kinds are excluded from forms by the view model.
         _ => {
             let v = escape_html(&value_string(&current));
-            format!("<input type=\"text\" id=\"{id}\" name=\"{name}\" value=\"{v}\">")
+            format!(
+                "<input class=\"form-control{invalid}\" type=\"text\" id=\"{id}\" name=\"{name}\" value=\"{v}\">"
+            )
         }
     };
     return Value::from_safe_string(html);

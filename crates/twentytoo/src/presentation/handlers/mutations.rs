@@ -12,16 +12,14 @@ use crate::application::payload;
 use crate::application::payload::validate_entity;
 use crate::shared::errors::AppError;
 
-use super::helpers::{
-    form_action, gate_resource, htmx_redirect, is_htmx, record_id, render_form_error,
-};
-use super::{FormData, ResourceState};
+use super::helpers::{form_action, gate_resource, record_id, render_form_error};
+use super::{Flash, FormData, ResourceState};
 
 /// POST /resources/{key} — create one record.
 pub async fn create_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
-    headers: axum::http::HeaderMap,
+    flash: Flash,
     form: FormData,
 ) -> Result<Response, AppError> {
     let resource = &*st.resource;
@@ -42,7 +40,7 @@ pub async fn create_handler<R: Resource>(
                 &payload::form_values(&form),
                 errors,
                 None,
-                &headers,
+                &flash,
             );
         }
     };
@@ -56,7 +54,7 @@ pub async fn create_handler<R: Resource>(
             &payload::form_values(&form),
             payload::FieldErrors::new(),
             Some(msg),
-            &headers,
+            &flash,
         );
     }
 
@@ -69,14 +67,12 @@ pub async fn create_handler<R: Resource>(
         Ok(created) => {
             let id = record_id(&created);
             let location = form_action(resource.key(), Some(&id));
-            if is_htmx(&headers) {
-                return Ok(htmx_redirect(
-                    &location,
-                    "success",
-                    &format!("Created {}", resource.label()),
-                ));
-            }
-            return Ok(Redirect::to(&location).into_response());
+            return Ok(Redirect::to(&Flash::redirect(
+                &location,
+                "success",
+                &format!("Created {}", resource.label()),
+            ))
+            .into_response());
         }
         Err(DataError::Validation(msg)) => {
             return render_form_error(
@@ -88,7 +84,7 @@ pub async fn create_handler<R: Resource>(
                 &payload::form_values(&form),
                 payload::FieldErrors::new(),
                 Some(msg),
-                &headers,
+                &flash,
             );
         }
         Err(DataError::Conflict) => {
@@ -101,7 +97,7 @@ pub async fn create_handler<R: Resource>(
                 &payload::form_values(&form),
                 payload::FieldErrors::new(),
                 Some("A record with this id already exists.".to_string()),
-                &headers,
+                &flash,
             );
         }
         Err(e) => return Err(e.into()),
@@ -113,7 +109,7 @@ pub async fn update_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
     Path(id): Path<String>,
-    headers: axum::http::HeaderMap,
+    flash: Flash,
     form: FormData,
 ) -> Result<Response, AppError> {
     let resource = &*st.resource;
@@ -140,7 +136,7 @@ pub async fn update_handler<R: Resource>(
                 &payload::form_values(&form),
                 errors,
                 None,
-                &headers,
+                &flash,
             );
         }
     };
@@ -154,7 +150,7 @@ pub async fn update_handler<R: Resource>(
             &payload::form_values(&form),
             payload::FieldErrors::new(),
             Some(msg),
-            &headers,
+            &flash,
         );
     }
 
@@ -166,10 +162,10 @@ pub async fn update_handler<R: Resource>(
     match resource.adapter().update(&id, payload, &ctx).await {
         Ok(_) => {
             let location = form_action(resource.key(), Some(&id));
-            if is_htmx(&headers) {
-                return Ok(htmx_redirect(&location, "success", "Changes saved"));
-            }
-            return Ok(Redirect::to(&location).into_response());
+            return Ok(
+                Redirect::to(&Flash::redirect(&location, "success", "Changes saved"))
+                    .into_response(),
+            );
         }
         Err(DataError::Validation(msg)) => {
             return render_form_error(
@@ -181,7 +177,7 @@ pub async fn update_handler<R: Resource>(
                 &payload::form_values(&form),
                 payload::FieldErrors::new(),
                 Some(msg),
-                &headers,
+                &flash,
             );
         }
         Err(DataError::Conflict) => {
@@ -194,7 +190,7 @@ pub async fn update_handler<R: Resource>(
                 &payload::form_values(&form),
                 payload::FieldErrors::new(),
                 Some("This record changed elsewhere — reload and retry.".to_string()),
-                &headers,
+                &flash,
             );
         }
         Err(e) => return Err(e.into()),
@@ -206,7 +202,6 @@ pub async fn delete_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
     Path(id): Path<String>,
-    headers: axum::http::HeaderMap,
 ) -> Result<Response, AppError> {
     let resource = &*st.resource;
     gate_resource(&st, resource).await?;
@@ -225,12 +220,10 @@ pub async fn delete_handler<R: Resource>(
     };
     resource.adapter().delete(&id, &ctx).await?;
     let location = form_action(resource.key(), None);
-    if is_htmx(&headers) {
-        return Ok(htmx_redirect(
-            &location,
-            "success",
-            &format!("Deleted {}", resource.label()),
-        ));
-    }
-    return Ok(Redirect::to(&location).into_response());
+    return Ok(Redirect::to(&Flash::redirect(
+        &location,
+        "success",
+        &format!("Deleted {}", resource.label()),
+    ))
+    .into_response());
 }
