@@ -22,10 +22,14 @@ use crate::shared::utils::{escape_html, format_money};
 /// verifies each of these resolves after the env build.
 pub const BUILTIN_TEMPLATES: &[&str] = &[
     "layout/base.html.j2",
+    "layout/auth.html.j2",
     "dashboard/home.html.j2",
     "resource/list.html.j2",
     "resource/detail.html.j2",
     "resource/form.html.j2",
+    "partials/list.html.j2",
+    "partials/form.html.j2",
+    "partials/users-form.html.j2",
     "partials/pagination.html.j2",
     "auth/email.html.j2",
     "auth/code.html.j2",
@@ -33,6 +37,144 @@ pub const BUILTIN_TEMPLATES: &[&str] = &[
     "users/list.html.j2",
     "users/form.html.j2",
 ];
+
+/// The closed inline-SVG icon set (`01-ui-kit` §7.13). `Resource::icon()`
+/// values and template `icon(name)` calls must resolve here; the boot check
+/// (`container.rs`) validates every registered resource icon against it.
+pub const ICON_NAMES: &[&str] = &[
+    "alert",
+    "calendar",
+    "check",
+    "chevron-down",
+    "chevron-left",
+    "chevron-right",
+    "chevron-up",
+    "cube",
+    "dot",
+    "edit",
+    "external",
+    "file",
+    "filter",
+    "home",
+    "inbox",
+    "logout",
+    "more-horizontal",
+    "plus",
+    "search",
+    "settings",
+    "sort",
+    "spinner",
+    "trash",
+    "users",
+    "x",
+];
+
+/// The inner markup for one icon name: 24x24 viewBox, stroke 1.5,
+/// `currentColor` — colored purely by CSS.
+fn icon_paths(name: &str) -> &'static str {
+    return match name {
+        "alert" => {
+            "<path d=\"M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>"
+        }
+        "calendar" => {
+            "<rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/>"
+        }
+        "check" => "<path d=\"M20 6L9 17l-5-5\"/>",
+        "chevron-down" => "<path d=\"M6 9l6 6 6-6\"/>",
+        "chevron-left" => "<path d=\"M15 18l-6-6 6-6\"/>",
+        "chevron-right" => "<path d=\"M9 18l6-6-6-6\"/>",
+        "chevron-up" => "<path d=\"M18 15l-6-6-6 6\"/>",
+        "cube" => {
+            "<path d=\"M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z\"/><path d=\"M3.27 6.96L12 12.01l8.73-5.05\"/><path d=\"M12 22.08V12\"/>"
+        }
+        "dot" => "<circle cx=\"12\" cy=\"12\" r=\"5\" fill=\"currentColor\" stroke=\"none\"/>",
+        "edit" => {
+            "<path d=\"M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7\"/><path d=\"M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z\"/>"
+        }
+        "external" => {
+            "<path d=\"M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6\"/><path d=\"M15 3h6v6\"/><path d=\"M10 14L21 3\"/>"
+        }
+        "file" => {
+            "<path d=\"M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z\"/><path d=\"M14 2v6h6\"/>"
+        }
+        "filter" => "<path d=\"M22 3H2l8 9.46V19l4 2v-8.54L22 3z\"/>",
+        "home" => {
+            "<path d=\"M3 10.5L12 3l9 7.5\"/><path d=\"M5 9.5V21h14V9.5\"/><path d=\"M9.5 21v-6h5v6\"/>"
+        }
+        "inbox" => {
+            "<path d=\"M22 12h-6l-2 3h-4l-2-3H2\"/><path d=\"M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z\"/>"
+        }
+        "logout" => {
+            "<path d=\"M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4\"/><path d=\"M16 17l5-5-5-5\"/><path d=\"M21 12H9\"/>"
+        }
+        "more-horizontal" => {
+            "<circle cx=\"5\" cy=\"12\" r=\"1\"/><circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/>"
+        }
+        "plus" => "<path d=\"M12 5v14M5 12h14\"/>",
+        "search" => "<circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/>",
+        "settings" => {
+            "<path d=\"M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3\"/><path d=\"M14 2v4M8 10v4M16 18v4\"/>"
+        }
+        "sort" => "<path d=\"M8 9l4-4 4 4\"/><path d=\"M8 15l4 4 4-4\"/>",
+        "spinner" => "<circle cx=\"12\" cy=\"12\" r=\"9\" stroke-dasharray=\"30 30\"/>",
+        "trash" => {
+            "<path d=\"M3 6h18\"/><path d=\"M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6\"/><path d=\"M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2\"/><path d=\"M10 11v6M14 11v6\"/>"
+        }
+        "users" => {
+            "<path d=\"M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 00-3-3.87\"/><path d=\"M16 3.13a4 4 0 010 7.75\"/>"
+        }
+        "x" => "<path d=\"M18 6L6 18M6 6l12 12\"/>",
+        // Unknown names render the neutral dot fallback (01 §7.13).
+        _ => "<circle cx=\"12\" cy=\"12\" r=\"5\" fill=\"currentColor\" stroke=\"none\"/>",
+    };
+}
+
+/// One inline SVG icon as a string (used by the `icon` function and by
+/// field formatting).
+fn icon_svg(name: &str, size: usize) -> String {
+    let spin = if name == "spinner" { " icon--spin" } else { "" };
+    return format!(
+        "<svg class=\"icon{spin}\" width=\"{size}\" height=\"{size}\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">{}</svg>",
+        icon_paths(name)
+    );
+}
+
+/// Template function: `icon("check")` / `icon("check", 20)` — one inline
+/// SVG from the closed icon set (`01-ui-kit` §7.13). Safe string; the name
+/// is an internal lookup, never user markup.
+fn icon(name: String, size: Option<u64>) -> Value {
+    let size = size.unwrap_or(16) as usize;
+    return Value::from_safe_string(icon_svg(&name, size));
+}
+
+/// The deterministic avatar hue class for a name (`01-ui-kit` §7.3): the
+/// same string always yields the same color, server- and client-free.
+fn avatar_class(name: &str) -> String {
+    let mut hash: u32 = 5381;
+    for b in name.bytes() {
+        hash = hash.wrapping_mul(33).wrapping_add(u32::from(b));
+    }
+    const HUES: [&str; 9] = [
+        "red", "orange", "green", "teal", "blue", "indigo", "purple", "amber", "gray",
+    ];
+    return format!("avatar--{}", HUES[(hash % 9) as usize]);
+}
+
+/// Template filter: `email|avatar_hue` — the avatar hue class for a name.
+fn avatar_hue(value: &Value) -> String {
+    return avatar_class(&value.to_string());
+}
+
+/// Template filter: `name|initial` — the first character, uppercased, for
+/// avatar initials. Plain string; the template escapes it.
+fn initial(value: &Value) -> String {
+    return value
+        .to_string()
+        .chars()
+        .next()
+        .map(|c| return c.to_uppercase().to_string())
+        .unwrap_or_default();
+}
 
 /// The built environment, wrapped so the rest of the framework never names
 /// a template crate directly.
@@ -90,12 +232,14 @@ impl TemplateEngine {
         // Framework functions and filters (`00` §8.4). `flag` and
         // `metric_value` register with their slices.
         env.add_function("can", can);
+        env.add_function("icon", icon);
         env.add_function("format_field", format_field);
         env.add_function("format_filter", format_filter);
         env.add_function("form_control", form_control);
         env.add_filter("format_datetime", format_datetime);
         env.add_filter("currency", currency);
-
+        env.add_filter("avatar_hue", avatar_hue);
+        env.add_filter("initial", initial);
         // Boot check (`00` §8.5): every referenced name must resolve.
         for name in BUILTIN_TEMPLATES {
             env.get_template(name)?;
@@ -135,43 +279,86 @@ fn format_field(value: Value, kind: ViaDeserialize<KindView>) -> Value {
     let kind = &*kind;
     let text = match kind.tag.as_str() {
         "currency" => match as_f64(&value) {
-            Some(n) => format_money(n),
-            None => value.to_string(),
+            Some(n) => format!(
+                "<span class=\"u-num\">{}</span>",
+                escape_html(&format_money(n))
+            ),
+            None => escape_html(&value.to_string()),
         },
-        "datetime" => format_datetime(&value, "%Y-%m-%d %H:%M".to_string()),
+        "number" => format!(
+            "<span class=\"u-num\">{}</span>",
+            escape_html(&value.to_string())
+        ),
+        "datetime" => escape_html(&format_datetime(&value, "%Y-%m-%d %H:%M".to_string())),
+        "date" => escape_html(&format_datetime(&value, "%Y-%m-%d".to_string())),
         "boolean" => {
             if value.is_true() {
-                "Yes".to_string()
+                format!(
+                    "<span class=\"bool bool--yes\">{}Yes</span>",
+                    icon_svg("check", 14)
+                )
             } else {
-                "No".to_string()
+                format!(
+                    "<span class=\"bool bool--no\">{}No</span>",
+                    icon_svg("x", 14)
+                )
             }
         }
-        "select" | "badge" => label_for(kind, value.as_str()),
+        "badge" => badge_pill(kind, value.as_str()),
         "multiselect" => {
-            let mut labels: Vec<String> = value
+            let mut pills: Vec<String> = value
                 .try_iter()
-                .map(|iter| return iter.map(|v| return label_for(kind, v.as_str())).collect())
+                .map(|iter| return iter.map(|v| return badge_pill(kind, v.as_str())).collect())
                 .unwrap_or_default();
-            if labels.is_empty() {
-                labels.push(value.to_string());
+            if pills.is_empty() {
+                pills.push(badge_pill(kind, value.as_str()));
             }
-            labels.join(", ")
+            pills.join("")
         }
-        "relation" => {
-            let id = escape_html(&value.to_string());
-            let resource_key = escape_html(kind.relation.as_deref().unwrap_or(""));
-            if resource_key.is_empty() {
-                id
-            } else {
-                format!("<a href=\"/{resource_key}/{id}\">{id}</a>")
-            }
-        }
-        // text, textarea, richtext, number, date, email, json, file,
-        // image, computed — plain escaped text (computed values were
-        // materialized into the row by the handler).
+        "select" => label_for(kind, value.as_str()),
+        "relation" => relation_link(kind, &value.to_string()),
+        // text, textarea, richtext, email, json, file, image, computed —
+        // plain escaped text (computed values were materialized into the
+        // row by the handler).
         _ => escape_html(&value.to_string()),
     };
     return Value::from_safe_string(text);
+}
+
+/// One `Badge`/`MultiSelect` value as a soft pill (`01-ui-kit` §7.2). The
+/// semantic class follows the option's position in the declaration —
+/// config order is semantic order; unknown values fall back to neutral.
+fn badge_pill(kind: &KindView, value: Option<&str>) -> String {
+    let label = label_for(kind, value);
+    let Some(value) = value else {
+        return format!("<span class=\"badge\">{label}</span>");
+    };
+    let Some(index) = kind.options.iter().position(|o| return o.value == value) else {
+        return format!("<span class=\"badge\">{label}</span>");
+    };
+    const SEMANTIC: [&str; 5] = ["accent", "success", "warning", "danger", "info"];
+    let cls = SEMANTIC[index % SEMANTIC.len()];
+    return format!("<span class=\"badge badge--{cls}\">{label}</span>");
+}
+
+/// A `Relation` value as avatar + id link (`01-ui-kit` §7.3/§11.4). The
+/// avatar hue is deterministic from the id; the id is the display value —
+/// entities travel as JSON, so the related record's display field is not
+/// available at render time.
+fn relation_link(kind: &KindView, id: &str) -> String {
+    let id_esc = escape_html(id);
+    let initials = escape_html(&id.chars().take(2).collect::<String>().to_uppercase());
+    let avatar = format!(
+        "<span class=\"avatar avatar--sm {}\">{initials}</span>",
+        avatar_class(id)
+    );
+    let resource_key = escape_html(kind.relation.as_deref().unwrap_or(""));
+    if resource_key.is_empty() {
+        return format!("<span class=\"relation\">{avatar}<span>{id_esc}</span></span>");
+    }
+    return format!(
+        "<a class=\"relation\" href=\"/{resource_key}/{id_esc}\">{avatar}<span>{id_esc}</span></a>"
+    );
 }
 
 /// The label for a value within a select-like kind; unknown values render
@@ -259,7 +446,9 @@ fn form_control(field: ViaDeserialize<FieldView>, values: Value) -> Value {
     let html = match f.kind.tag.as_str() {
         "boolean" => {
             let checked = if current.is_true() { " checked" } else { "" };
-            format!("<input type=\"checkbox\" id=\"{id}\" name=\"{name}\"{checked}>")
+            format!(
+                "<label class=\"switch\"><input type=\"checkbox\" id=\"{id}\" name=\"{name}\"{checked}></label>"
+            )
         }
         "textarea" | "richtext" => {
             let v = escape_html(&value_string(&current));
@@ -460,6 +649,7 @@ mod tests {
         let nav = vec![NavItem {
             key: "widgets",
             label: "Widgets",
+            icon: "cube",
         }];
         let pager = PagerView {
             mode: "numbered",

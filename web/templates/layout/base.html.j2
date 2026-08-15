@@ -4,25 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Twentytoo{% endblock %}</title>
-<link rel="stylesheet" href="/static/css/app.css">
-{# htmx upgrades sort/filter/search/pagination to partial swaps; every
-   control degrades to plain HTTP without JS (`00` §8.6). Vendored with the
-   framework assets and served from the binary, not a CDN. #}
+{# Design system (01-ui-kit): tokens → base → layout → components →
+   utilities, all embedded in the binary. #}
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/layout.css">
+<link rel="stylesheet" href="/static/css/components.css">
+<link rel="stylesheet" href="/static/css/utilities.css">
+{# htmx upgrades every control to a partial swap; without it (or without
+   the enhancement script) everything degrades to plain HTTP (01 §8.1). #}
 <script src="/static/js/htmx.min.js" defer></script>
+<script src="/static/js/app.js" defer></script>
 </head>
 <body>
-<header class="topbar">
-  <a class="brand" href="/">Twentytoo</a>
-  <nav>
-    <a href="/" {% if active == "home" %}class="active"{% endif %}>Home</a>
-    {% for item in nav %}
-      <a href="/{{ item.key }}" {% if active == item.key %}class="active"{% endif %}>{{ item.label }}</a>
-    {% endfor %}
-  </nav>
-  <span class="actor">{{ actor.email }}</span>
-</header>
-<main>
-  {% block content %}{% endblock %}
-</main>
+<div class="shell">
+  <aside class="sidebar">
+    <a class="sidebar__brand" href="/">{{ icon("cube", 20) }}<span class="sidebar__brand-name">Twentytoo</span></a>
+    {# Boosted nav: swap the response's #main in place of the current one
+       (outerHTML — innerHTML would nest them) and keep the shell. #}
+    <nav class="sidebar__nav" hx-boost="true" hx-select="#main" hx-target="#main" hx-swap="outerHTML show:window:top">
+      <a href="/" {% if active == "home" %}class="is-active"{% endif %}>{{ icon("home", 16) }}<span class="sidebar__label">Home</span></a>
+      {% for item in nav %}
+        <a href="/{{ item.key }}" {% if active == item.key %}class="is-active"{% endif %}>{{ icon(item.icon, 16) }}<span class="sidebar__label">{{ item.label }}</span></a>
+      {% endfor %}
+    </nav>
+    <div class="sidebar__footer">
+      <button type="button" class="sidebar__collapse" data-tt-sidebar-toggle aria-label="Toggle sidebar">{{ icon("chevron-left", 16) }}</button>
+    </div>
+  </aside>
+  <div class="shell__body">
+    <header class="topbar">
+      <button type="button" class="topbar__menu" data-tt-sidebar-toggle aria-label="Open navigation">{{ icon("more-horizontal", 18) }}</button>
+      <div class="topbar__context">{% block context %}{% endblock %}</div>
+      <details class="menu menu--actor" data-tt-menu>
+        <summary class="menu__trigger">
+          <span class="avatar avatar--sm {{ actor.email|avatar_hue }}">{{ actor.email|initial }}</span>
+          <span class="menu__name">{{ actor.email }}</span>
+          {{ icon("chevron-down", 12) }}
+        </summary>
+        <div class="menu__panel">
+          {% if auth %}
+            <form method="post" action="/logout">
+              <button type="submit" class="menu__item menu__item--danger">{{ icon("logout", 16) }} Sign out</button>
+            </form>
+          {% else %}
+            <div class="menu__item menu__item--static">{{ icon("users", 16) }} {{ actor.email }}</div>
+          {% endif %}
+        </div>
+      </details>
+    </header>
+    {# Links and forms inside main are boosted the same way; controls with
+       their own hx-get/hx-post override the boost. #}
+    <main id="main" hx-boost="true" hx-select="#main" hx-target="#main" hx-swap="outerHTML show:window:top">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{# Mutation feedback arrives here via hx-swap-oob (01 §7.10). #}
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 </body>
 </html>

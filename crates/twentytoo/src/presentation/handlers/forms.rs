@@ -36,6 +36,7 @@ pub async fn create_form_handler<R: Resource>(
         nav => &nav,
         active => resource.key(),
         actor => &actor,
+        auth => st.app.auth.is_some(),
     };
     let html = st.app.templates.render("resource/form.html.j2", &ctx)?;
     return Ok(Html(html).into_response());
@@ -72,6 +73,7 @@ pub async fn edit_form_handler<R: Resource>(
         nav => &nav,
         active => resource.key(),
         actor => &actor,
+        auth => st.app.auth.is_some(),
     };
     let html = st.app.templates.render("resource/form.html.j2", &ctx)?;
     return Ok(Html(html).into_response());

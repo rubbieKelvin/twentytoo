@@ -1,64 +1,17 @@
-{# The generated list view (`00` §8). #}
+{# The generated list page (01 §8.3): a thin wrapper around the #list
+   fragment, which htmx swaps on search/filter/sort/pagination. #}
 {% extends "layout/base.html.j2" %}
 
 {% block title %}{{ resource.label }} — Twentytoo{% endblock %}
+
+{% block context %}{{ resource.label }}{% endblock %}
 
 {% block content %}
 <div class="resource-header">
   <h1>{{ resource.label }}</h1>
   {% if resource.can_create %}
-    <a href="/{{ resource.key }}/new" class="btn btn-primary">New {{ resource.label }}</a>
+    <a href="/{{ resource.key }}/new" class="btn btn--primary">{{ icon("plus", 16) }} New {{ resource.label }}</a>
   {% endif %}
 </div>
-
-{# Search + filter bar; htmx swaps only the table, plain HTTP falls back to
-   a full reload (`00` §8.6). #}
-<form class="toolbar" hx-get="/{{ resource.key }}" hx-target="#resource-table" hx-trigger="submit">
-  {% if resource.searchable %}
-    <input type="search" name="q" value="{{ q|default('') }}" placeholder="Search {{ resource.label }}..."
-           hx-get="/{{ resource.key }}" hx-target="#resource-table"
-           hx-trigger="keyup changed delay:300ms" />
-  {% endif %}
-  {% for filter in resource.filters %}
-    {{ format_filter(filter) }}
-  {% endfor %}
-  <button type="submit" class="btn">Apply</button>
-</form>
-
-<div id="resource-table">
-  <table>
-    <thead>
-      <tr>
-        {% for col in resource.columns %}
-          <th>
-            {% if resource.sortable and col.sortable %}
-              <a href="/{{ resource.key }}?{{ link_base }}{% if sort_param == col.name %}-{% endif %}sort={{ col.name }}"
-                 hx-get="/{{ resource.key }}?{{ link_base }}{% if sort_param == col.name %}-{% endif %}sort={{ col.name }}"
-                 hx-target="#resource-table">
-                {{ col.label }}{% if sort_param == col.name %} ↓{% elif sort_param == '-' ~ col.name %} ↑{% endif %}
-              </a>
-            {% else %}
-              {{ col.label }}
-            {% endif %}
-          </th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in items %}
-        <tr>
-          {% for col in resource.columns %}
-            <td><a href="/{{ resource.key }}/{{ item.id }}">{{ format_field(item[col.name], col.kind) }}</a></td>
-          {% endfor %}
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  {% if not items %}
-    <p class="empty">No {{ resource.label }} match.</p>
-  {% endif %}
-
-  {% include "partials/pagination.html.j2" %}
-</div>
+{% include "partials/list.html.j2" %}
 {% endblock %}

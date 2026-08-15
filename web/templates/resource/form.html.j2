@@ -1,30 +1,16 @@
-{# Shared create/edit form. `mode` is "create" or "edit"; `values` carries
-   the current field values (empty object for create); `errors` maps field
-   names to messages; `form_error` is the entity-level error. #}
+{# Shared create/edit form page: a thin wrapper around the form fragment.
+   `mode` is "create" or "edit"; `values` carries the current field values;
+   `errors` maps field names to messages; `form_error` is the entity-level
+   error. #}
 {% extends "layout/base.html.j2" %}
 
 {% block title %}{% if mode == "create" %}New{% else %}Edit{% endif %} {{ resource.label }} — Twentytoo{% endblock %}
+
+{% block context %}{{ resource.label }}{% endblock %}
 
 {% block content %}
 <div class="resource-header">
   <h1>{% if mode == "create" %}New{% else %}Edit{% endif %} {{ resource.label }}</h1>
 </div>
-
-{% if form_error %}
-  <div class="alert error">{{ form_error }}</div>
-{% endif %}
-
-<form method="post" action="{{ form_action }}" class="form">
-  {% for f in resource.form_fields %}
-    <div class="field{% if errors[f.name] %} has-error{% endif %}">
-      <label for="f-{{ f.name }}">{{ f.label }}{% if f.required %} <span class="req">*</span>{% endif %}</label>
-      {{ form_control(f, values) }}
-      {% if errors[f.name] %}<p class="field-error">{{ errors[f.name] }}</p>{% endif %}
-    </div>
-  {% endfor %}
-  <div class="form-actions">
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a class="btn" href="/{{ resource.key }}{% if mode == "edit" %}/{{ record_id }}{% endif %}">Cancel</a>
-  </div>
-</form>
+{% include "partials/form.html.j2" %}
 {% endblock %}

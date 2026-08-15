@@ -35,6 +35,10 @@ impl Resource for UserResource {
         return "Members";
     }
 
+    fn icon(&self) -> &'static str {
+        return "users";
+    }
+
     fn fields(&self) -> Vec<Field<Self::Entity>> {
         return fields![
             field!("id", "Id", Text, form: true, required: true),

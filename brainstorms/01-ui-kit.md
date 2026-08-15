@@ -371,7 +371,7 @@ Open flow (htmx): `hx-get="/{key}/{id}/delete-confirm"` targeting a shared dialo
 .toast--success | --error | --info   icon hue per kind
 ```
 
-Server truth, zero-JS path: mutations respond with an `hx-swap-oob` fragment targeting `#toasts` (`<div id="toasts" role="status" aria-live="polite">` in the layout), the fragment contains the toast markup — works with and without htmx on full-page posts. The optional JS only auto-dismisses after ~4s (pause on hover) and removes the node; without JS the toast simply stays until the next navigation. This replaces today's inline `.alert` block as the default mutation feedback; `.alert` stays for full-page form errors (login).
+Server truth, zero-JS path: mutations respond with `HX-Redirect` plus an `HX-Trigger` `{"tt:toast": {kind, message}}` header. The redirect destroys the current document, so the enhancement script stashes the trigger payload in `sessionStorage` and renders the toast into `#toasts` on the redirected page (`<div id="toasts" role="status" aria-live="polite">` in the layout); the optional JS also auto-dismisses after ~4s (pause on hover). OOB-swap toasts remain available for non-redirecting swaps, but every built-in mutation redirects, so the trigger+flash path is the shipped one. Plain full-page posts get the 303 without a toast — the state change itself is the feedback. This replaces the inline `.alert` block as the default mutation feedback; `.alert` stays for full-page form errors (login).
 
 ### 7.11 Pagination (`.pagination`)
 
@@ -425,11 +425,11 @@ View Transitions API, opt-in per swap: `hx-swap="outerHTML transition:true"` on 
 - **In-place buttons**: `hx-indicator` + `.is-loading` spinner (§7.1); `hx-disabled-elt="find button"` prevents double-posts.
 - **List swaps**: the `htmx-request` class on `#list` dims it to 60% opacity during the flight; a slow request (threshold via htmx's `hx-indicator` on the toolbar) shows the toolbar spinner.
 - **First paint**: server-rendered skeleton rows (§7.12), swapped by the first fragment.
-- **Toasts**: OOB swap per mutation (§7.10) — the screens' "did the thing" feedback.
+- **Toasts**: `HX-Trigger` + sessionStorage flash per mutation (§7.10) — the screens' "did the thing" feedback.
 
 ### 8.7 Writes: server-confirmed by default
 
-Create/edit/delete are `hx-post` on forms targeting the page region: 422 re-renders the form fragment in place; success swaps the list/detail fragment and OOB-fires a toast; redirects come back as `HX-Redirect` headers. No optimistic flips anywhere in v1 — the one place optimism is *allowed* later is `.switch` toggles (flip instantly, reconcile on the response, revert on error), specced but not shipped (§12).
+Create/edit/delete are `hx-post` on forms targeting the page region: 422 re-renders the form fragment in place; success answers with `HX-Redirect` + a `tt:toast` trigger, the client renders the toast on the landed page (§7.10). No optimistic flips anywhere in v1 — the one place optimism is *allowed* later is `.switch` toggles (flip instantly, reconcile on the response, revert on error), specced but not shipped (§12).
 
 ### 8.8 Detail-page composition
 
@@ -526,7 +526,7 @@ The §00 5.6 capability matrix already removes UI the source can't honor; the ki
 | JS ceiling | htmx + one <2KB optional `app.js`, delegated `data-tt-*` behaviors | Everything degrades to HTML; delegated listeners survive htmx swaps; a size cap enforces the design |
 | Icons | Closed inline-SVG set, stroke 1.5, macro-rendered | No fonts/CDNs/build steps; server-rendered and CSS-tinted |
 | Dialogs | Native `<dialog>` | Focus trap, Escape, backdrop for free; degrade = confirm pages |
-| Feedback | OOB-swap toasts as default, `.alert` for full-page errors | Works without JS; server truth; one toast path |
+| Feedback | `HX-Trigger` toast + sessionStorage flash, `.alert` for full-page errors | Survives the redirect navigation; server truth; one toast path |
 | Density | 13px tables, 8px grid, hairline borders | Matches the reference set; reads as "modern tool", not "bootstrap admin" |
 | Depth | Borders first, shadows only on overlays | Screens 5/6 prove flat cards read fine; fewer shadow recipes to maintain |
 | URL state | All list state in the URL (`hx-push-url`) | Shareable/bookmarkable views with zero client state |

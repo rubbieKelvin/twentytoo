@@ -1,36 +1,39 @@
 {# Renders exactly one pager: numbered pages when the source can count
-   cheaply (Page.total: Some), prev/next otherwise (`00` §5.4). #}
+   cheaply (Page.total: Some), prev/next otherwise (00 §5.4). Every link
+   swaps the #list fragment and pushes the URL (01 §8.4); their own
+   hx-select="#list" overrides the boosted <main>'s inherited
+   hx-select="#main", which would find nothing in a fragment response. #}
 {% if pager.mode == "numbered" and pager.total_pages > 1 %}
-<nav class="pagination" hx-boost="true">
+<nav class="pagination" aria-label="Pagination">
   {% if pager.prev_url %}
-    <a href="{{ pager.prev_url }}" hx-get="{{ pager.prev_url }}" hx-target="#resource-table">« Prev</a>
+    <a href="{{ pager.prev_url }}" hx-get="{{ pager.prev_url }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list" aria-label="Previous page">{{ icon("chevron-left", 14) }}</a>
   {% else %}
-    <span class="off">« Prev</span>
+    <span class="off" aria-hidden="true">{{ icon("chevron-left", 14) }}</span>
   {% endif %}
   {% for link in pager.page_links %}
     {% if link.page == pager.current %}
-      <span class="current">{{ link.page }}</span>
+      <span class="current" aria-current="page">{{ link.page }}</span>
     {% else %}
-      <a href="{{ link.url }}" hx-get="{{ link.url }}" hx-target="#resource-table">{{ link.page }}</a>
+      <a href="{{ link.url }}" hx-get="{{ link.url }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list">{{ link.page }}</a>
     {% endif %}
   {% endfor %}
   {% if pager.next_url %}
-    <a href="{{ pager.next_url }}" hx-get="{{ pager.next_url }}" hx-target="#resource-table">Next »</a>
+    <a href="{{ pager.next_url }}" hx-get="{{ pager.next_url }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list" aria-label="Next page">{{ icon("chevron-right", 14) }}</a>
   {% else %}
-    <span class="off">Next »</span>
+    <span class="off" aria-hidden="true">{{ icon("chevron-right", 14) }}</span>
   {% endif %}
 </nav>
 {% elif pager.mode == "prevnext" and (pager.prev_url or pager.next_url) %}
-<nav class="pagination" hx-boost="true">
+<nav class="pagination" aria-label="Pagination">
   {% if pager.prev_url %}
-    <a href="{{ pager.prev_url }}" hx-get="{{ pager.prev_url }}" hx-target="#resource-table">« Prev</a>
+    <a href="{{ pager.prev_url }}" hx-get="{{ pager.prev_url }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list" aria-label="Previous page">{{ icon("chevron-left", 14) }} Prev</a>
   {% else %}
-    <span class="off">« Prev</span>
+    <span class="off">Prev</span>
   {% endif %}
   {% if pager.next_url %}
-    <a href="{{ pager.next_url }}" hx-get="{{ pager.next_url }}" hx-target="#resource-table">Next »</a>
+    <a href="{{ pager.next_url }}" hx-get="{{ pager.next_url }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list" aria-label="Next page">Next {{ icon("chevron-right", 14) }}</a>
   {% else %}
-    <span class="off">Next »</span>
+    <span class="off">Next</span>
   {% endif %}
 </nav>
 {% endif %}

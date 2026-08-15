@@ -35,12 +35,47 @@ pub(super) async fn gate_resource<R: Resource>(
     }
     return Ok(());
 }
+/// Whether the request came from htmx (any `hx-*` control or a boosted
+/// form/link). Plain HTTP requests never set this header.
+pub(super) fn is_htmx(headers: &axum::http::HeaderMap) -> bool {
+    return headers.get("HX-Request").is_some();
+}
+
+/// The htmx success response for a mutation (`01-ui-kit` §8.7): an
+/// `HX-Redirect` plus a `tt:toast` trigger event carrying the feedback.
+/// The client's enhancement script stashes the trigger in sessionStorage
+/// and renders it as a toast on the redirected page — an out-of-band swap
+/// would die with the document it was swapped into. Plain POSTs never
+/// reach here — they get the 303 below.
+pub(super) fn htmx_redirect(location: &str, kind: &str, message: &str) -> Response {
+    let mut response = axum::response::Response::new(axum::body::Body::empty());
+    let headers = response.headers_mut();
+    headers.insert(
+        "HX-Redirect",
+        axum::http::HeaderValue::from_str(location)
+            .unwrap_or(axum::http::HeaderValue::from_static("/")),
+    );
+    // htmx parses JSON trigger headers and fires the event with the
+    // parsed object as detail.
+    let trigger = format!(
+        "{{\"tt:toast\": {{\"kind\": \"{kind}\", \"message\": {}}}}}",
+        serde_json::to_string(message).unwrap_or_else(|_| return "\"\"".to_string())
+    );
+    headers.insert(
+        "HX-Trigger",
+        axum::http::HeaderValue::from_str(&trigger)
+            .unwrap_or(axum::http::HeaderValue::from_static("{}")),
+    );
+    return response;
+}
 
 /// Re-render the form with errors (422), keeping the submitted values.
 ///
-/// The eight arguments are the full render input — mode, record id,
-/// submitted values, field errors, entity error — plus the three context
-/// handles; grouping them into a struct would just relocate the noise.
+/// The arguments are the full render input — mode, record id, submitted
+/// values, field errors, entity error, the request headers — plus the
+/// three context handles; grouping them into a struct would just relocate
+/// the noise. htmx posts get the bare form fragment swapped into
+/// `#form-region`; plain posts get the full page (`01-ui-kit` §8.7).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn render_form_error<R: Resource>(
     st: &ResourceState<R>,
@@ -51,6 +86,7 @@ pub(super) fn render_form_error<R: Resource>(
     values: &Value,
     errors: payload::FieldErrors,
     form_error: Option<String>,
+    headers: &axum::http::HeaderMap,
 ) -> Result<Response, AppError> {
     let view = ResourceView::for_actor(resource, actor);
     let nav = st.app.nav_for(actor);
@@ -65,8 +101,14 @@ pub(super) fn render_form_error<R: Resource>(
         nav => &nav,
         active => resource.key(),
         actor,
+        auth => st.app.auth.is_some(),
     };
-    let html = st.app.templates.render("resource/form.html.j2", &ctx)?;
+    let name = if is_htmx(headers) {
+        "partials/form.html.j2"
+    } else {
+        "resource/form.html.j2"
+    };
+    let html = st.app.templates.render(name, &ctx)?;
     return Ok((axum::http::StatusCode::UNPROCESSABLE_ENTITY, Html(html)).into_response());
 }
 

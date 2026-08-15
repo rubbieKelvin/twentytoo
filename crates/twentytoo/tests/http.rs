@@ -405,10 +405,10 @@ async fn static_assets_serve_from_the_binary() {
     let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
     let app = build_app(WidgetResource::new(adapter)).await;
 
-    let (status, content_type, body) = get_asset(&app, "/static/css/app.css").await;
+    let (status, content_type, body) = get_asset(&app, "/static/css/tokens.css").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(content_type.as_deref(), Some("text/css; charset=utf-8"));
-    assert!(body.starts_with(b"/* Framework stylesheet"));
+    assert!(body.starts_with(b"/* Twentytoo design tokens"));
 
     let (status, content_type, _) = get_asset(&app, "/static/js/htmx.min.js").await;
     assert_eq!(status, StatusCode::OK);
@@ -432,7 +432,7 @@ async fn pages_reference_embedded_assets_not_a_cdn() {
     seed(&adapter, 1);
     let app = build_app(WidgetResource::new(adapter)).await;
     let (_, body) = get(&app, "/widgets").await;
-    assert!(body.contains("/static/css/app.css"));
     assert!(body.contains("/static/js/htmx.min.js"));
+    assert!(body.contains("/static/js/app.js"));
     assert!(!body.contains("unpkg.com"));
 }

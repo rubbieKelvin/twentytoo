@@ -27,7 +27,15 @@ impl StaticFiles {
     /// (`container.rs`) verifies each one is embedded, and the unit tests
     /// assert they stay that way. When a built-in template references a
     /// new asset, add its name here.
-    pub const BUILTIN_ASSETS: &[&str] = &["css/app.css", "js/htmx.min.js"];
+    pub const BUILTIN_ASSETS: &[&str] = &[
+        "css/tokens.css",
+        "css/base.css",
+        "css/layout.css",
+        "css/components.css",
+        "css/utilities.css",
+        "js/htmx.min.js",
+        "js/app.js",
+    ];
 
     /// Resolve a request path (`css/app.css`, optionally `/`-prefixed) to
     /// its embedded asset.
@@ -77,7 +85,7 @@ mod tests {
 
     #[test]
     fn css_serves_as_text_css() {
-        let file = StaticFiles::get("css/app.css").expect("app.css embedded");
+        let file = StaticFiles::get("css/tokens.css").expect("tokens.css embedded");
         assert_eq!(file.content_type, "text/css; charset=utf-8");
         assert!(!file.data.is_empty());
     }

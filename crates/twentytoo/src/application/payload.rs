@@ -15,7 +15,9 @@ pub type FieldErrors = HashMap<String, String>;
 /// - `MultiSelect`: all submitted values collected.
 /// - `Number`/`Currency`: must parse; integers stay integers.
 /// - `Json`: must parse as JSON.
-/// - everything else: single string; empty optional values are omitted.
+/// - everything else: single string; empty values stay as empty strings —
+///   omitting them would make a plain `String` entity field fail to
+///   decode.
 /// - `File`/`Image` never appear — the view model excludes them from forms.
 pub fn build_payload<E>(
     fields: &[Field<E>],
@@ -112,11 +114,7 @@ pub fn build_payload<E>(
                     if field.required {
                         errors.insert(name.to_string(), format!("{} is required", field.label));
                     }
-                }
-                Some(s) if s.trim().is_empty() => {
-                    if field.required {
-                        errors.insert(name.to_string(), format!("{} is required", field.label));
-                    }
+                    obj.insert(name.to_string(), Value::String(String::new()));
                 }
                 Some(s) => {
                     obj.insert(name.to_string(), Value::String(s.trim().to_string()));
@@ -197,13 +195,14 @@ mod tests {
     }
 
     #[test]
-    fn coerces_kinds_and_omits_empty_optional() {
+    fn coerces_kinds_and_keeps_empty_text() {
         let form = HashMap::from([
             ("name".to_string(), vec![" Ada ".to_string()]),
             ("age".to_string(), vec!["42".to_string()]),
             ("role".to_string(), vec!["admin".to_string()]),
             ("tags".to_string(), vec!["a".to_string(), "b".to_string()]),
             ("active".to_string(), vec!["on".to_string()]),
+            ("note".to_string(), vec![String::new()]),
         ]);
         let payload = build_payload(&sample_fields(), &form).unwrap();
         assert_eq!(payload["name"], "Ada");
@@ -211,7 +210,9 @@ mod tests {
         assert_eq!(payload["role"], "admin");
         assert_eq!(payload["tags"], serde_json::json!(["a", "b"]));
         assert_eq!(payload["active"], true);
-        assert!(payload.get("note").is_none());
+        // Empty optional text stays present: a plain String entity field
+        // decodes an empty string, not a missing key.
+        assert_eq!(payload["note"], "");
     }
 
     #[test]

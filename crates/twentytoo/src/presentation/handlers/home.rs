@@ -20,6 +20,7 @@ pub async fn home_handler(
         nav => &nav,
         active => "home",
         actor => &actor,
+        auth => app.auth.is_some(),
     };
     let html = app.templates.render("dashboard/home.html.j2", &ctx)?;
     return Ok(Html(html).into_response());

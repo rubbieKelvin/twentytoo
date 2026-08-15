@@ -36,6 +36,7 @@ impl AppState {
             nav.push(NavItem {
                 key: "users",
                 label: "Users",
+                icon: "users",
             });
         }
         return nav;

@@ -1,0 +1,74 @@
+{# The #list fragment (01 §8.3): toolbar + table + pagination. Rendered
+   standalone for htmx list-control requests, included by the page for full
+   loads. Every control is a URL-producing control: without htmx the form
+   submits and the links navigate (01 §8.1).
+
+   The fragment controls carry their own hx-select="#list": hx-select is
+   inherited from the boosted <main> (which selects #main from full-page
+   responses), and an element's own value wins — without it the fragment
+   swap would find no #main and fail. #}
+<div id="list">
+  <form class="toolbar" hx-get="/{{ resource.key }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-select="#list"
+        hx-trigger="input changed delay:350ms from:input[type=search], change from:select, submit" hx-push-url="true">
+    {% if resource.searchable %}
+      <label class="toolbar__search">
+        {{ icon("search", 16) }}
+        <input type="search" name="q" value="{{ q|default('') }}" placeholder="Search {{ resource.label }}...">
+      </label>
+    {% endif %}
+    {% for filter in resource.filters %}
+      {{ format_filter(filter) }}
+    {% endfor %}
+    <button type="submit" class="btn btn--sm">Apply</button>
+  </form>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          {% for col in resource.columns %}
+            <th{% if resource.sortable and col.sortable %} aria-sort="{% if sort_param == col.name %}ascending{% elif sort_param == '-' ~ col.name %}descending{% else %}none{% endif %}"{% endif %}>
+              {% if resource.sortable and col.sortable %}
+                <a href="/{{ resource.key }}?{{ link_base }}{% if sort_param == col.name %}-{% endif %}sort={{ col.name }}"
+                   hx-get="/{{ resource.key }}?{{ link_base }}{% if sort_param == col.name %}-{% endif %}sort={{ col.name }}"
+                   hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list">
+                  {{ col.label }}
+                  {% if sort_param == col.name %}{{ icon("chevron-down", 12) }}{% elif sort_param == '-' ~ col.name %}{{ icon("chevron-up", 12) }}{% endif %}
+                </a>
+              {% else %}
+                {{ col.label }}
+              {% endif %}
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          <tr>
+            {% for col in resource.columns %}
+              {% if loop.first %}
+                <td class="table__identity"><a href="/{{ resource.key }}/{{ item.id }}">{{ format_field(item[col.name], col.kind) }}</a></td>
+              {% else %}
+                <td>{{ format_field(item[col.name], col.kind) }}</td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+        {% else %}
+          <tr>
+            <td class="empty" colspan="{{ resource.columns|length }}">
+              <div class="empty__icon">{{ icon("inbox", 20) }}</div>
+              <p class="empty__title">{% if q or has_filters %}No {{ resource.label }} match your filters{% else %}No {{ resource.label }} yet{% endif %}</p>
+              {% if q or has_filters %}
+                <div class="empty__actions"><a class="btn btn--ghost btn--sm" href="/{{ resource.key }}">Clear filters</a></div>
+              {% elif resource.can_create %}
+                <div class="empty__actions"><a class="btn btn--ghost btn--sm" href="/{{ resource.key }}/new">{{ icon("plus", 14) }} Create the first {{ resource.label }}</a></div>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "partials/pagination.html.j2" %}
+</div>

@@ -2,17 +2,19 @@
 
 {% block title %}Home — Twentytoo{% endblock %}
 
+{% block context %}Dashboard{% endblock %}
+
 {% block content %}
-<h1>Dashboard</h1>
+<div class="resource-header">
+  <h1>Dashboard</h1>
+</div>
 <div class="card-grid">
   {% for card in cards %}
-    <a class="card" href="/{{ card.key }}">
-      <h2>{{ card.label }}</h2>
+    <a class="card card--hover" href="/{{ card.key }}">
+      <div class="card__icon">{{ icon(card.icon, 20) }}</div>
+      <h2 class="card__title">{{ card.label }}</h2>
       {% if card.count is not none %}
-        <p class="count">{{ card.count }} records</p>
-      {% endif %}
-      {% if card.can_create %}
-        <p class="count">create allowed</p>
+        <p class="card__sub">{{ card.count }} records</p>
       {% endif %}
     </a>
   {% endfor %}

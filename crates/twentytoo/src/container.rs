@@ -13,7 +13,7 @@ use twentytoo_db::Db;
 use crate::application::auth::{AuthConfig, AuthService, CodeSender, ConsoleCodeSender};
 use crate::infrastructure::flags::FlagService;
 use crate::infrastructure::static_files::StaticFiles;
-use crate::infrastructure::templates::TemplateEngine;
+use crate::infrastructure::templates::{ICON_NAMES, TemplateEngine};
 use crate::presentation::handlers::{
     ResourceState, auth, home_handler, not_found, resource_routes, static_file_handler, users,
 };
@@ -270,6 +270,18 @@ impl TwentytooBuilder {
 
         let metas: Vec<Box<dyn DynResourceMeta>> =
             self.resources.iter().map(|r| return r.meta()).collect();
+        // Boot check (`01-ui-kit` §11.3): every resource icon must resolve
+        // in the closed icon set — an unknown name fails here, not at
+        // first render.
+        for meta in &metas {
+            if !ICON_NAMES.contains(&meta.icon()) {
+                return Err(BuildError::Config(format!(
+                    "resource \"{}\" declares unknown icon \"{}\" — add it to the icon set",
+                    meta.key(),
+                    meta.icon()
+                )));
+            }
+        }
         let app = Arc::new(AppState {
             registry: Arc::new(ResourceRegistry::new(metas)),
             templates,

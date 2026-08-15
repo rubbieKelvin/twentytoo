@@ -1,39 +1,47 @@
-{# The Users area list: framework-owned accounts behind users.view. Rows
-   link to the edit screen. #}
+{# The Users area list: framework-owned accounts behind users.view. #}
 {% extends "layout/base.html.j2" %}
 
 {% block title %}Users — Twentytoo{% endblock %}
+
+{% block context %}Users{% endblock %}
 
 {% block content %}
 <div class="resource-header">
   <h1>Users</h1>
   {% if can_create %}
-    <a href="/users/new" class="btn btn-primary">New user</a>
+    <a href="/users/new" class="btn btn--primary">{{ icon("plus", 16) }} New user</a>
   {% endif %}
 </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Email</th>
-      <th>Name</th>
-      <th>Status</th>
-      <th>Created</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for user in users %}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
       <tr>
-        <td><a href="/users/{{ user.id }}">{{ user.email }}</a></td>
-        <td>{{ user.name }}</td>
-        <td><span class="badge">{{ user.status }}</span></td>
-        <td>{{ user.created_at|format_datetime("%b %d, %Y") }}</td>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Status</th>
+        <th>Created</th>
       </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-{% if not users %}
-  <p class="empty">No users yet.</p>
-{% endif %}
+    </thead>
+    <tbody>
+      {% for user in users %}
+        <tr>
+          <td class="table__identity">
+            <a href="/users/{{ user.id }}"><span class="avatar avatar--sm {{ user.name|avatar_hue }}">{{ user.name|initial }}</span> {{ user.name }}</a>
+          </td>
+          <td>{{ user.email }}</td>
+          <td>{% if user.status == "active" %}<span class="badge badge--success">Active</span>{% else %}<span class="badge badge--warning">Disabled</span>{% endif %}</td>
+          <td>{{ user.created_at|format_datetime("%b %d, %Y") }}</td>
+        </tr>
+      {% else %}
+        <tr>
+          <td class="empty" colspan="4">
+            <div class="empty__icon">{{ icon("users", 20) }}</div>
+            <p class="empty__title">No users yet</p>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

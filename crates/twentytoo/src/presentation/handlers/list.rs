@@ -21,6 +21,7 @@ use super::{ListParams, ResourceState};
 pub async fn list_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
+    headers: axum::http::HeaderMap,
     Query(params): Query<ListParams>,
     Query(extra): Query<HashMap<String, String>>,
 ) -> Result<Response, AppError> {
@@ -133,18 +134,31 @@ pub async fn list_handler<R: Resource>(
         &base_path,
     );
     let nav = st.app.nav_for(&actor);
+    let has_filters = !extra.is_empty();
     let ctx = context! {
         resource => &view,
         items => &result.items,
         pager => &pager,
         q => params.q.as_deref().unwrap_or(""),
+        has_filters,
         sort_param => params.sort.clone().unwrap_or_default(),
         link_base => &link_base,
         can_create => resource.policy().can_create(&actor),
         nav => &nav,
         active => resource.key(),
         actor => &actor,
+        auth => st.app.auth.is_some(),
     };
-    let html = st.app.templates.render("resource/list.html.j2", &ctx)?;
+    // htmx list controls (search/filter/sort/pagination) swap the bare
+    // #list fragment; boosted and plain GETs render the full page — the
+    // layout's hx-select picks out #main for boosted swaps (`01-ui-kit`
+    // §8.2/§8.3).
+    let fragment = headers.get("HX-Request").is_some() && headers.get("HX-Boosted").is_none();
+    let name = if fragment {
+        "partials/list.html.j2"
+    } else {
+        "resource/list.html.j2"
+    };
+    let html = st.app.templates.render(name, &ctx)?;
     return Ok(Html(html).into_response());
 }

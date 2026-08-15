@@ -1,0 +1,52 @@
+{# The Users form fragment (01 §8.7): posted via htmx and swapped in
+   place; 422 responses re-render this fragment with field errors. #}
+<div id="form-region">
+  {% if form_error %}
+    <div class="alert alert--error">{{ form_error }}</div>
+  {% endif %}
+  <form method="post" class="form" action="{% if mode == "create" %}/users/new{% else %}/users/{{ record_id }}{% endif %}"
+        hx-post="{% if mode == "create" %}/users/new{% else %}/users/{{ record_id }}{% endif %}"
+        hx-target="#form-region" hx-swap="outerHTML" hx-select="#form-region">
+    {% if mode == "create" %}
+      <div class="field{% if errors.email %} has-error{% endif %}">
+        <label for="f-email">Email <span class="req">*</span></label>
+        <input name="email" id="f-email" type="email" required value="{{ values.email|default('') }}">
+        {% if errors.email %}<p class="field-error">{{ errors.email }}</p>{% endif %}
+      </div>
+    {% else %}
+      <div class="field">
+        <label>Email</label>
+        <p class="hint">{{ email }}</p>
+      </div>
+    {% endif %}
+
+    <div class="field{% if errors.name %} has-error{% endif %}">
+      <label for="f-name">Name <span class="req">*</span></label>
+      <input name="name" id="f-name" type="text" required value="{{ values.name|default('') }}">
+      {% if errors.name %}<p class="field-error">{{ errors.name }}</p>{% endif %}
+    </div>
+
+    {% if mode == "edit" %}
+      <div class="field{% if errors.status %} has-error{% endif %}">
+        <label for="f-status">Status</label>
+        <select name="status" id="f-status">
+          <option value="active" {% if values.status|default('active') == "active" %}selected{% endif %}>Active</option>
+          <option value="disabled" {% if values.status|default('active') == "disabled" %}selected{% endif %}>Disabled</option>
+        </select>
+        {% if errors.status %}<p class="field-error">{{ errors.status }}</p>{% endif %}
+      </div>
+    {% endif %}
+
+    <div class="field{% if errors.password %} has-error{% endif %}">
+      <label for="f-password">Password{% if mode == "create" %} <span class="req">*</span>{% endif %}</label>
+      <input name="password" id="f-password" type="password" {% if mode == "create" %}required{% endif %} autocomplete="new-password">
+      {% if mode == "edit" %}<p class="hint">Leave blank to keep the current password.</p>{% endif %}
+      {% if errors.password %}<p class="field-error">{{ errors.password }}</p>{% endif %}
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">{{ icon("check", 16) }} Save<span class="spinner" hx-indicator aria-hidden="true"></span></button>
+      <a class="btn" href="/users">Cancel</a>
+    </div>
+  </form>
+</div>

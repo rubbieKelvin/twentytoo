@@ -2,26 +2,42 @@
 
 {% block title %}{{ resource.label }} #{{ record.id }} — Twentytoo{% endblock %}
 
+{% block context %}{{ resource.label }}{% endblock %}
+
 {% block content %}
 <div class="resource-header">
   <h1>{{ resource.label }} #{{ record.id }}</h1>
-  <div class="actions">
+  <div class="resource-header__actions">
     {% if can_update %}
-      <a class="btn" href="/{{ resource.key }}/{{ record.id }}/edit">Edit</a>
+      <a class="btn" href="/{{ resource.key }}/{{ record.id }}/edit">{{ icon("edit", 16) }} Edit</a>
     {% endif %}
     {% if can_delete %}
-      <form method="post" action="/{{ resource.key }}/{{ record.id }}/delete"
-            onsubmit="return confirm('Delete this {{ resource.label }}?');">
-        <button class="btn btn-danger">Delete</button>
-      </form>
+      <button type="button" class="btn btn--danger" data-tt-dialog-open="#delete-dialog">{{ icon("trash", 16) }} Delete</button>
     {% endif %}
   </div>
 </div>
 
-<dl class="detail">
-  {% for f in resource.detail_fields %}
-    <dt>{{ f.label }}</dt>
-    <dd>{{ format_field(record[f.name], f.kind) }}</dd>
-  {% endfor %}
-</dl>
+<div class="card">
+  <dl class="detail">
+    {% for f in resource.detail_fields %}
+      <div class="detail__row">
+        <dt>{{ f.label }}</dt>
+        <dd>{{ format_field(record[f.name], f.kind) }}</dd>
+      </div>
+    {% endfor %}
+  </dl>
+</div>
+
+{% if can_delete %}
+{# Native dialog (01 §7.9): JS opens it via data-tt-dialog-open; without
+   JS it degrades to an inline confirmation card (html:not(.js) CSS). #}
+<dialog id="delete-dialog" class="dialog" aria-labelledby="delete-dialog-title">
+  <h2 class="dialog__title" id="delete-dialog-title">Delete this {{ resource.label }}?</h2>
+  <p class="dialog__body">This deletes {{ resource.label }} #{{ record.id }}. This cannot be undone.</p>
+  <form method="post" action="/{{ resource.key }}/{{ record.id }}/delete" class="dialog__actions">
+    <button class="btn dialog__cancel" formmethod="dialog">Cancel</button>
+    <button type="submit" class="btn btn--danger btn--solid">Delete</button>
+  </form>
+</dialog>
+{% endif %}
 {% endblock %}

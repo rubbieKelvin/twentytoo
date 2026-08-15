@@ -12,6 +12,9 @@ pub struct Store {
     name: String,
     city: String,
     status: String,
+    /// Optional in the form: a blank payload omits it, so the entity needs
+    /// a default (00 §7.3's server-managed-field rule).
+    #[serde(default)]
     revenue: f64,
     /// Server-managed: forms never send it, so it needs a default.
     #[serde(default)]
@@ -31,6 +34,9 @@ impl Resource for StoreResource {
 
     fn label(&self) -> &'static str {
         return "Stores";
+    }
+    fn icon(&self) -> &'static str {
+        return "file";
     }
 
     fn fields(&self) -> Vec<Field<Self::Entity>> {

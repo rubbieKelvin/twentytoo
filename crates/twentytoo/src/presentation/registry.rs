@@ -6,13 +6,15 @@ use async_trait::async_trait;
 use serde::Serialize;
 use twentytoo_core::{Actor, DataError, Pagination, Query, Resource};
 
-/// One nav entry for the top bar.
+/// One nav entry for the sidebar (`01-ui-kit` §6).
 #[derive(Clone, Debug, Serialize)]
 pub struct NavItem {
     /// Resource key (`"stores"`).
     pub key: &'static str,
     /// Human label (`"Stores"`).
     pub label: &'static str,
+    /// Icon name from the closed set (`01-ui-kit` §7.13).
+    pub icon: &'static str,
 }
 
 /// One home-page card.
@@ -22,10 +24,10 @@ pub struct HomeCard {
     pub key: &'static str,
     /// Human label.
     pub label: &'static str,
+    /// Icon name from the closed set (`01-ui-kit` §7.13).
+    pub icon: &'static str,
     /// Record count, when the source can count cheaply (`Page.total`).
     pub count: Option<u64>,
-    /// Whether the actor may create records here.
-    pub can_create: bool,
 }
 
 /// Erased per-resource facts the non-generic handlers (home, nav) need.
@@ -35,6 +37,8 @@ pub trait DynResourceMeta: Send + Sync {
     fn key(&self) -> &'static str;
     /// Human label.
     fn label(&self) -> &'static str;
+    /// Icon name from the closed set (`01-ui-kit` §7.13).
+    fn icon(&self) -> &'static str;
     /// `policy().can_view_any(actor)`.
     fn can_view_any(&self, actor: &Actor) -> bool;
     /// `policy().can_create(actor)`.
@@ -58,6 +62,10 @@ impl<R: Resource> DynResourceMeta for ResourceMeta<R> {
 
     fn label(&self) -> &'static str {
         return self.resource.label();
+    }
+
+    fn icon(&self) -> &'static str {
+        return self.resource.icon();
     }
 
     fn can_view_any(&self, actor: &Actor) -> bool {
@@ -107,6 +115,7 @@ impl ResourceRegistry {
                 return NavItem {
                     key: m.key(),
                     label: m.label(),
+                    icon: m.icon(),
                 };
             })
             .collect();
@@ -123,8 +132,8 @@ impl ResourceRegistry {
                 return HomeCard {
                     key: m.key(),
                     label: m.label(),
+                    icon: m.icon(),
                     count: None,
-                    can_create: m.can_create(actor),
                 };
             })
             .collect();

@@ -4,17 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Twentytoo{% endblock %}</title>
-{# Standalone shell for the login screens: no topbar/nav — these pages
-   render before an actor exists. Shares the framework stylesheet; the
-   `.auth-*` classes scope the login panel. #}
-<link rel="stylesheet" href="/static/css/app.css">
+{# Standalone shell for the login screens: no sidebar/topbar — these pages
+   render before an actor exists. Shares the design system; the auth layout
+   scopes the centered card (01 §6). #}
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/layout.css">
+<link rel="stylesheet" href="/static/css/components.css">
+<link rel="stylesheet" href="/static/css/utilities.css">
 </head>
 <body>
 <main class="auth-shell">
   <div class="auth-card">
-    <a class="brand" href="/login">Twentytoo</a>
+    <a class="brand" href="/login">{{ icon("cube", 20) }} Twentytoo</a>
     {% if error %}
-      <div class="alert error">{{ error }}</div>
+      <div class="alert alert--error">{{ error }}</div>
     {% endif %}
     {% block content %}{% endblock %}
   </div>
