@@ -190,7 +190,7 @@ async fn list_renders_rows_with_pagination() {
     seed(&adapter, 30);
     let app = build_app(WidgetResource::new(adapter)).await;
 
-    let (status, body) = get(&app, "/widgets?per_page=10").await;
+    let (status, body) = get(&app, "/resources/widgets?per_page=10").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Widgets"));
     assert!(body.contains("Widget 01"));
@@ -203,7 +203,7 @@ async fn list_renders_rows_with_pagination() {
     assert!(body.contains("page=2"), "pager must link page 2");
     assert!(body.contains("page=3"), "pager must link page 3");
 
-    let (_, page2) = get(&app, "/widgets?per_page=10&page=2").await;
+    let (_, page2) = get(&app, "/resources/widgets?per_page=10&page=2").await;
     assert!(page2.contains("Widget 11"));
     assert!(!page2.contains("Widget 01"));
 }
@@ -215,14 +215,14 @@ async fn list_search_and_filter_narrow_rows() {
     let app = build_app(WidgetResource::new(adapter)).await;
 
     // Search by name.
-    let (status, body) = get(&app, "/widgets?q=Widget%201").await;
+    let (status, body) = get(&app, "/resources/widgets?q=Widget%201").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Widget 1"));
     assert!(body.contains("Widget 19"));
     assert!(!body.contains("Widget 2"));
 
     // Filter by status.
-    let (_, body) = get(&app, "/widgets?status=retired").await;
+    let (_, body) = get(&app, "/resources/widgets?status=retired").await;
     assert!(body.contains("Widget 03"));
     assert!(
         !body.contains("Widget 01"),
@@ -236,7 +236,7 @@ async fn list_sort_descending() {
     seed(&adapter, 5);
     let app = build_app(WidgetResource::new(adapter)).await;
 
-    let (_, body) = get(&app, "/widgets?sort=-name").await;
+    let (_, body) = get(&app, "/resources/widgets?sort=-name").await;
     let pos1 = body.find("Widget 05").expect("row 05 present");
     let pos2 = body.find("Widget 01").expect("row 01 present");
     assert!(pos1 < pos2, "descending sort puts 05 before 01");
@@ -250,7 +250,7 @@ async fn list_denied_by_policy_is_403() {
     resource.policy = Box::new(DenyAll2);
     let app = build_app(resource).await;
 
-    let (status, _) = get(&app, "/widgets").await;
+    let (status, _) = get(&app, "/resources/widgets").await;
     assert_eq!(status, StatusCode::FORBIDDEN);
 }
 
@@ -260,7 +260,7 @@ async fn detail_renders_record_and_gates_buttons() {
     seed(&adapter, 3);
     let app = build_app(WidgetResource::new(adapter)).await;
 
-    let (status, body) = get(&app, "/widgets/w1").await;
+    let (status, body) = get(&app, "/resources/widgets/w1").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Widget 01"));
     assert!(body.contains("Active"), "badge label rendered");
@@ -272,7 +272,7 @@ async fn detail_renders_record_and_gates_buttons() {
 async fn detail_missing_is_404() {
     let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
     let app = build_app(WidgetResource::new(adapter)).await;
-    let (status, _) = get(&app, "/widgets/nope").await;
+    let (status, _) = get(&app, "/resources/widgets/nope").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
@@ -285,14 +285,19 @@ async fn create_inserts_and_redirects_to_detail() {
     let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
     let app = build_app(WidgetResource::new(adapter.clone())).await;
 
-    let (status, body) = post(&app, "/widgets", "id=w9&name=Gadget&status=active").await;
+    let (status, body) = post(
+        &app,
+        "/resources/widgets",
+        "id=w9&name=Gadget&status=active",
+    )
+    .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
     assert!(
-        body.contains("Location: /widgets/w9") || body.is_empty(),
+        body.contains("Location: /resources/widgets/w9") || body.is_empty(),
         "redirect to the new record"
     );
 
-    let (_, detail) = get(&app, "/widgets/w9").await;
+    let (_, detail) = get(&app, "/resources/widgets/w9").await;
     assert!(detail.contains("Gadget"));
     assert!(detail.contains("Active"));
 }
@@ -302,7 +307,7 @@ async fn create_without_required_field_rerenders_form_with_error() {
     let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
     let app = build_app(WidgetResource::new(adapter)).await;
 
-    let (status, body) = post(&app, "/widgets", "id=w9&status=active").await;
+    let (status, body) = post(&app, "/resources/widgets", "id=w9&status=active").await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert!(body.contains("Name is required"));
     // The submitted values survive the error re-render.
@@ -315,10 +320,15 @@ async fn update_merges_and_redirects() {
     seed(&adapter, 1);
     let app = build_app(WidgetResource::new(adapter)).await;
 
-    let (status, _) = post(&app, "/widgets/w1", "id=w1&name=Renamed&status=retired").await;
+    let (status, _) = post(
+        &app,
+        "/resources/widgets/w1",
+        "id=w1&name=Renamed&status=retired",
+    )
+    .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    let (_, detail) = get(&app, "/widgets/w1").await;
+    let (_, detail) = get(&app, "/resources/widgets/w1").await;
     assert!(detail.contains("Renamed"));
     assert!(detail.contains("Retired"));
 }
@@ -327,7 +337,7 @@ async fn update_merges_and_redirects() {
 async fn update_missing_is_404() {
     let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
     let app = build_app(WidgetResource::new(adapter)).await;
-    let (status, _) = post(&app, "/widgets/nope", "name=X").await;
+    let (status, _) = post(&app, "/resources/widgets/nope", "name=X").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
@@ -337,10 +347,10 @@ async fn delete_removes_and_redirects() {
     seed(&adapter, 1);
     let app = build_app(WidgetResource::new(adapter.clone())).await;
 
-    let (status, _) = post(&app, "/widgets/w1/delete", "").await;
+    let (status, _) = post(&app, "/resources/widgets/w1/delete", "").await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    let (status, _) = get(&app, "/widgets/w1").await;
+    let (status, _) = get(&app, "/resources/widgets/w1").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
@@ -356,7 +366,7 @@ async fn flagged_off_resource_is_404() {
     resource.flag = Some("widgets-flag");
     let app = build_app(resource).await;
 
-    let (status, _) = get(&app, "/widgets").await;
+    let (status, _) = get(&app, "/resources/widgets").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
@@ -431,7 +441,7 @@ async fn pages_reference_embedded_assets_not_a_cdn() {
     let adapter = Arc::new(InMemoryAdapter::<Widget>::new());
     seed(&adapter, 1);
     let app = build_app(WidgetResource::new(adapter)).await;
-    let (_, body) = get(&app, "/widgets").await;
+    let (_, body) = get(&app, "/resources/widgets").await;
     assert!(body.contains("/static/js/htmx.min.js"));
     assert!(body.contains("/static/js/app.js"));
     assert!(!body.contains("unpkg.com"));

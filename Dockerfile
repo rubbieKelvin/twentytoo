@@ -2,6 +2,7 @@ FROM rust:1.94-bookworm AS builder
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
+COPY web/ ./web/
 RUN cargo build --release -p twentytoo --example demo
 
 FROM debian:bookworm-slim

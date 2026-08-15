@@ -141,7 +141,7 @@ Rules:
 - `can()` reads the actor from render `State`, so templates call
   `can("stores.create")` — no actor argument.
 - Anything data-shaping or non-presentational (joining labels, resolving
-  relations, building URLs beyond a simple `/{key}/{id}`) belongs in Rust, not
+  relations, building URLs beyond a simple `/resources/{key}/{id}`) belongs in Rust, not
   in the template.
 
 ## Readability

@@ -1,4 +1,4 @@
-//! GET /{key}/{id} — one record, computed columns materialized.
+//! GET /resources/{key}/{id} — one record, computed columns materialized.
 
 use axum::extract::{Path, State};
 use axum::response::{Html, IntoResponse, Response};
@@ -11,7 +11,7 @@ use crate::shared::errors::AppError;
 use super::ResourceState;
 use super::helpers::gate_resource;
 
-/// GET /{key}/{id} — one record.
+/// GET /resources/{key}/{id} — one record.
 pub async fn detail_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,

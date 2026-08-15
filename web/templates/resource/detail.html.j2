@@ -9,7 +9,7 @@
   <h1>{{ resource.label }} #{{ record.id }}</h1>
   <div class="resource-header__actions">
     {% if can_update %}
-      <a class="btn" href="/{{ resource.key }}/{{ record.id }}/edit">{{ icon("edit", 16) }} Edit</a>
+      <a class="btn" href="/resources/{{ resource.key }}/{{ record.id }}/edit">{{ icon("edit", 16) }} Edit</a>
     {% endif %}
     {% if can_delete %}
       <button type="button" class="btn btn--danger" data-tt-dialog-open="#delete-dialog">{{ icon("trash", 16) }} Delete</button>
@@ -34,7 +34,7 @@
 <dialog id="delete-dialog" class="dialog" aria-labelledby="delete-dialog-title">
   <h2 class="dialog__title" id="delete-dialog-title">Delete this {{ resource.label }}?</h2>
   <p class="dialog__body">This deletes {{ resource.label }} #{{ record.id }}. This cannot be undone.</p>
-  <form method="post" action="/{{ resource.key }}/{{ record.id }}/delete" class="dialog__actions">
+  <form method="post" action="/resources/{{ resource.key }}/{{ record.id }}/delete" class="dialog__actions">
     <button class="btn dialog__cancel" formmethod="dialog">Cancel</button>
     <button type="submit" class="btn btn--danger btn--solid">Delete</button>
   </form>

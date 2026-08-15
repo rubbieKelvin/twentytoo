@@ -1,4 +1,4 @@
-//! GET /{key}/new and /{key}/{id}/edit — the form pages, empty or pre-filled.
+//! GET /resources/{key}/new and /resources/{key}/{id}/edit — the form pages, empty or pre-filled.
 
 use axum::extract::{Path, State};
 use axum::response::{Html, IntoResponse, Response};
@@ -11,9 +11,9 @@ use crate::application::payload;
 use crate::shared::errors::AppError;
 
 use super::ResourceState;
-use super::helpers::gate_resource;
+use super::helpers::{form_action, gate_resource};
 
-/// GET /{key}/new — the create form.
+/// GET /resources/{key}/new — the create form.
 pub async fn create_form_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
@@ -28,7 +28,7 @@ pub async fn create_form_handler<R: Resource>(
     let ctx = context! {
         resource => &view,
         mode => "create",
-        form_action => format!("/{}", resource.key()),
+        form_action => form_action(resource.key(), None),
         record_id => Option::<String>::None,
         values => &Value::Object(Default::default()),
         errors => &payload::FieldErrors::new(),
@@ -42,7 +42,7 @@ pub async fn create_form_handler<R: Resource>(
     return Ok(Html(html).into_response());
 }
 
-/// GET /{key}/{id}/edit — the edit form, pre-filled.
+/// GET /resources/{key}/{id}/edit — the edit form, pre-filled.
 pub async fn edit_form_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
@@ -65,7 +65,7 @@ pub async fn edit_form_handler<R: Resource>(
     let ctx = context! {
         resource => &view,
         mode => "edit",
-        form_action => format!("/{}/{}", resource.key(), id),
+        form_action => form_action(resource.key(), Some(&id)),
         record_id => &id,
         values => &values,
         errors => &payload::FieldErrors::new(),

@@ -25,7 +25,7 @@
     <nav class="sidebar__nav" hx-boost="true" hx-select="#main" hx-target="#main" hx-swap="outerHTML show:window:top">
       <a href="/" {% if active == "home" %}class="is-active"{% endif %}>{{ icon("home", 16) }}<span class="sidebar__label">Home</span></a>
       {% for item in nav %}
-        <a href="/{{ item.key }}" {% if active == item.key %}class="is-active"{% endif %}>{{ icon(item.icon, 16) }}<span class="sidebar__label">{{ item.label }}</span></a>
+        <a href="/resources/{{ item.key }}" {% if active == item.key %}class="is-active"{% endif %}>{{ icon(item.icon, 16) }}<span class="sidebar__label">{{ item.label }}</span></a>
       {% endfor %}
     </nav>
     <div class="sidebar__footer">

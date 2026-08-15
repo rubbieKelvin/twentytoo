@@ -21,6 +21,7 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgres://twentytoo:twentytoo@db:5432/twentytoo
+      RUST_BACKTRACE: 1
     depends_on:
       db:
         condition: service_healthy

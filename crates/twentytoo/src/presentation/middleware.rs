@@ -103,6 +103,6 @@ mod tests {
         assert!(!is_public_path("/"));
         assert!(!is_public_path("/users"));
         assert!(!is_public_path("/loginish"));
-        assert!(!is_public_path("/stores/42"));
+        assert!(!is_public_path("/resources/stores/42"));
     }
 }

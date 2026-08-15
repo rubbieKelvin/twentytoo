@@ -10,7 +10,7 @@
 </div>
 <div class="card-grid">
   {% for card in cards %}
-    <a class="card card--hover" href="/{{ card.key }}">
+    <a class="card card--hover" href="/resources/{{ card.key }}">
       <div class="card__icon">{{ icon(card.icon, 20) }}</div>
       <h2 class="card__title">{{ card.label }}</h2>
       {% if card.count is not none %}

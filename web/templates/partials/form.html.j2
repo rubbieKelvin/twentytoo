@@ -15,7 +15,7 @@
     {% endfor %}
     <div class="form-actions">
       <button type="submit" class="btn btn--primary">{{ icon("check", 16) }} Save<span class="spinner" hx-indicator aria-hidden="true"></span></button>
-      <a class="btn" href="/{{ resource.key }}{% if mode == "edit" %}/{{ record_id }}{% endif %}">Cancel</a>
+      <a class="btn" href="/resources/{{ resource.key }}{% if mode == "edit" %}/{{ record_id }}{% endif %}">Cancel</a>
     </div>
   </form>
 </div>

@@ -1,4 +1,4 @@
-//! GET /{key} — one page of rows, with pagination, sort, search, filters.
+//! GET /resources/{key} — one page of rows, with pagination, sort, search, filters.
 
 use std::collections::HashMap;
 
@@ -14,10 +14,10 @@ use crate::application::dto::ResourceView;
 use crate::application::query::build_filter;
 use crate::shared::errors::AppError;
 
-use super::helpers::{build_pager, gate_resource};
+use super::helpers::{build_pager, form_action, gate_resource};
 use super::{ListParams, ResourceState};
 
-/// GET /{key} — one page of rows.
+/// GET /resources/{key} — one page of rows.
 pub async fn list_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
@@ -124,7 +124,7 @@ pub async fn list_handler<R: Resource>(
     };
 
     let view = ResourceView::for_actor(resource, &actor).with_filter_values(&extra);
-    let base_path = format!("/{}", resource.key());
+    let base_path = form_action(resource.key(), None);
     let pager = build_pager(
         &result,
         &params,

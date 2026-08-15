@@ -8,7 +8,7 @@
    responses), and an element's own value wins — without it the fragment
    swap would find no #main and fail. #}
 <div id="list">
-  <form class="toolbar" hx-get="/{{ resource.key }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-select="#list"
+  <form class="toolbar" hx-get="/resources/{{ resource.key }}" hx-target="#list" hx-swap="outerHTML show:window:top" hx-select="#list"
         hx-trigger="input changed delay:350ms from:input[type=search], change from:select, submit" hx-push-url="true">
     {% if resource.searchable %}
       <label class="toolbar__search">
@@ -29,8 +29,8 @@
           {% for col in resource.columns %}
             <th{% if resource.sortable and col.sortable %} aria-sort="{% if sort_param == col.name %}ascending{% elif sort_param == '-' ~ col.name %}descending{% else %}none{% endif %}"{% endif %}>
               {% if resource.sortable and col.sortable %}
-                <a href="/{{ resource.key }}?{{ link_base }}{% if sort_param == col.name %}-{% endif %}sort={{ col.name }}"
-                   hx-get="/{{ resource.key }}?{{ link_base }}{% if sort_param == col.name %}-{% endif %}sort={{ col.name }}"
+                <a href="/resources/{{ resource.key }}?{{ link_base }}{% if sort_param == col.name %}-{% endif %}sort={{ col.name }}"
+                   hx-get="/resources/{{ resource.key }}?{{ link_base }}{% if sort_param == col.name %}-{% endif %}sort={{ col.name }}"
                    hx-target="#list" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-select="#list">
                   {{ col.label }}
                   {% if sort_param == col.name %}{{ icon("chevron-down", 12) }}{% elif sort_param == '-' ~ col.name %}{{ icon("chevron-up", 12) }}{% endif %}
@@ -47,7 +47,7 @@
           <tr>
             {% for col in resource.columns %}
               {% if loop.first %}
-                <td class="table__identity"><a href="/{{ resource.key }}/{{ item.id }}">{{ format_field(item[col.name], col.kind) }}</a></td>
+                <td class="table__identity"><a href="/resources/{{ resource.key }}/{{ item.id }}">{{ format_field(item[col.name], col.kind) }}</a></td>
               {% else %}
                 <td>{{ format_field(item[col.name], col.kind) }}</td>
               {% endif %}
@@ -59,9 +59,9 @@
               <div class="empty__icon">{{ icon("inbox", 20) }}</div>
               <p class="empty__title">{% if q or has_filters %}No {{ resource.label }} match your filters{% else %}No {{ resource.label }} yet{% endif %}</p>
               {% if q or has_filters %}
-                <div class="empty__actions"><a class="btn btn--ghost btn--sm" href="/{{ resource.key }}">Clear filters</a></div>
+                <div class="empty__actions"><a class="btn btn--ghost btn--sm" href="/resources/{{ resource.key }}">Clear filters</a></div>
               {% elif resource.can_create %}
-                <div class="empty__actions"><a class="btn btn--ghost btn--sm" href="/{{ resource.key }}/new">{{ icon("plus", 14) }} Create the first {{ resource.label }}</a></div>
+                <div class="empty__actions"><a class="btn btn--ghost btn--sm" href="/resources/{{ resource.key }}/new">{{ icon("plus", 14) }} Create the first {{ resource.label }}</a></div>
               {% endif %}
             </td>
           </tr>

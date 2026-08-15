@@ -1,4 +1,4 @@
-//! POST /{key}, /{key}/{id}, /{key}/{id}/delete — the write handlers.
+//! POST /resources/{key}, /resources/{key}/{id}, /resources/{key}/{id}/delete — the write handlers.
 //!
 //! Create and update share the same shape: payload build → entity
 //! validation → adapter write, with validation and conflict failures
@@ -12,10 +12,12 @@ use crate::application::payload;
 use crate::application::payload::validate_entity;
 use crate::shared::errors::AppError;
 
-use super::helpers::{gate_resource, htmx_redirect, is_htmx, record_id, render_form_error};
+use super::helpers::{
+    form_action, gate_resource, htmx_redirect, is_htmx, record_id, render_form_error,
+};
 use super::{FormData, ResourceState};
 
-/// POST /{key} — create one record.
+/// POST /resources/{key} — create one record.
 pub async fn create_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
@@ -66,7 +68,7 @@ pub async fn create_handler<R: Resource>(
     match resource.adapter().create(payload, &ctx).await {
         Ok(created) => {
             let id = record_id(&created);
-            let location = format!("/{}/{}", resource.key(), id);
+            let location = form_action(resource.key(), Some(&id));
             if is_htmx(&headers) {
                 return Ok(htmx_redirect(
                     &location,
@@ -106,7 +108,7 @@ pub async fn create_handler<R: Resource>(
     }
 }
 
-/// POST /{key}/{id} — update one record.
+/// POST /resources/{key}/{id} — update one record.
 pub async fn update_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
@@ -163,7 +165,7 @@ pub async fn update_handler<R: Resource>(
     };
     match resource.adapter().update(&id, payload, &ctx).await {
         Ok(_) => {
-            let location = format!("/{}/{id}", resource.key());
+            let location = form_action(resource.key(), Some(&id));
             if is_htmx(&headers) {
                 return Ok(htmx_redirect(&location, "success", "Changes saved"));
             }
@@ -199,7 +201,7 @@ pub async fn update_handler<R: Resource>(
     }
 }
 
-/// POST /{key}/{id}/delete — remove one record.
+/// POST /resources/{key}/{id}/delete — remove one record.
 pub async fn delete_handler<R: Resource>(
     State(st): State<ResourceState<R>>,
     axum::Extension(actor): axum::Extension<Actor>,
@@ -222,7 +224,7 @@ pub async fn delete_handler<R: Resource>(
         actor: Some(&actor),
     };
     resource.adapter().delete(&id, &ctx).await?;
-    let location = format!("/{}", resource.key());
+    let location = form_action(resource.key(), None);
     if is_htmx(&headers) {
         return Ok(htmx_redirect(
             &location,

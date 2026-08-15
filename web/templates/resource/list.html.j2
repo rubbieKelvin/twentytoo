@@ -10,7 +10,7 @@
 <div class="resource-header">
   <h1>{{ resource.label }}</h1>
   {% if resource.can_create %}
-    <a href="/{{ resource.key }}/new" class="btn btn--primary">{{ icon("plus", 16) }} New {{ resource.label }}</a>
+    <a href="/resources/{{ resource.key }}/new" class="btn btn--primary">{{ icon("plus", 16) }} New {{ resource.label }}</a>
   {% endif %}
 </div>
 {% include "partials/list.html.j2" %}

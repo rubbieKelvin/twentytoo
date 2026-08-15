@@ -112,11 +112,14 @@ pub(super) fn render_form_error<R: Resource>(
     return Ok((axum::http::StatusCode::UNPROCESSABLE_ENTITY, Html(html)).into_response());
 }
 
-/// The form's POST target.
+/// The URL for a resource view — `/resources/{key}`, plus `/{id}` when a
+/// record is given. The form POST target, the list base path, and every
+/// post-mutation redirect come from here, so the route prefix lives in
+/// exactly one place.
 pub(super) fn form_action(key: &str, record_id: Option<&str>) -> String {
     return match record_id {
-        Some(id) => format!("/{key}/{id}"),
-        None => format!("/{key}"),
+        Some(id) => format!("/resources/{key}/{id}"),
+        None => format!("/resources/{key}"),
     };
 }
 

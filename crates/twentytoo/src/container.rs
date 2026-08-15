@@ -322,7 +322,10 @@ impl TwentytooBuilder {
             // Each resource router carries its own `ResourceState<R>` and is
             // state-baked (`Router<()>`) before nesting, so the outer
             // `Router<AppState>` stays uniform.
-            router = router.nest_service(&format!("/{key}"), resource.into_router(app.clone()));
+            router = router.nest_service(
+                &format!("/resources/{key}"),
+                resource.into_router(app.clone()),
+            );
         }
         // The layer's state must be `AppState` itself — `State<AppState>`
         // extracts via `FromRef` and `Arc<AppState>` has no such impl.

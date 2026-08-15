@@ -362,7 +362,7 @@ Native `<dialog>` + `::backdrop` (surface blur 0, `rgb(0 0 0 / .32)`):
 .dialog__title / __body / __actions (actions right-aligned: ghost + primary)
 ```
 
-Open flow (htmx): `hx-get="/{key}/{id}/delete-confirm"` targeting a shared dialog element swaps the innerHTML and calls `showModal()` via `HX-Trigger` — or a tiny inline handler. Cancel = `<button value="cancel" formmethod="dialog">`; confirm = `hx-post` that targets the dialog (swap to empty + close on 204). Focus trapping, Escape, and `role=dialog` come free from the element — this is the pattern screens 3's profile dropdown and every confirm flow uses. Without JS, confirm actions are their own GET pages with a form — the degrade path.
+Open flow (htmx): `hx-get="/resources/{key}/{id}/delete-confirm"` targeting a shared dialog element swaps the innerHTML and calls `showModal()` via `HX-Trigger` — or a tiny inline handler. Cancel = `<button value="cancel" formmethod="dialog">`; confirm = `hx-post` that targets the dialog (swap to empty + close on 204). Focus trapping, Escape, and `role=dialog` come free from the element — this is the pattern screens 3's profile dropdown and every confirm flow uses. Without JS, confirm actions are their own GET...
 
 ### 7.10 Toasts / flash (`.toast`)
 
@@ -402,7 +402,7 @@ The sidebar, topbar breadcrumbs, and card links carry `hx-boost="true"`; the lay
 
 ### 8.3 The list fragment contract
 
-The list page (`resource/list.html.j2`) is one partial — `#list` = toolbar (search + filters + view toggles) + table + pagination — rendered by `GET /{key}` with and without `HX-Request` (full page vs. fragment). Every list control targets `#list` with `hx-swap="outerHTML"`:
+The list page (`resource/list.html.j2`) is one partial — `#list` = toolbar (search + filters + view toggles) + table + pagination — rendered by `GET /resources/{key}` with and without `HX-Request` (full page vs. fragment). Every list control targets `#list` with `hx-swap="outerHTML"`:
 
 - **Search**: `hx-get` + `hx-trigger="input changed delay:400ms, search"` + `hx-push-url="true"` — screens' debounced topbar search.
 - **Filters**: the filter form `hx-get` on `change` (checkbox/select), preserving the rest of the query string.
@@ -433,7 +433,7 @@ Create/edit/delete are `hx-post` on forms targeting the page region: 422 re-rend
 
 ### 8.8 Detail-page composition
 
-Detail pages compose from independent fragments: header (title + badge + actions), field list, right-rail cards, relationship tabs (§7.7). Each fragment is its own route (`GET /{key}/{id}/…`) so future inline editing can swap a single card without a page reload — same architecture the screens' rail cards imply, no client state.
+Detail pages compose from independent fragments: header (title + badge + actions), field list, right-rail cards, relationship tabs (§7.7). Each fragment is its own route (`GET /resources/{key}/{id}/…`) so future inline editing can swap a single card without a page reload — same architecture the screens' rail cards imply, no client state.
 
 ### 8.9 The degrade matrix
 

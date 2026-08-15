@@ -6,8 +6,8 @@
 //! search, sort, and filters — the same handler drives an offset source
 //! with numbered pages and a cursor-only source with prev/next (`00` §7.3).
 //!
-//! Layout: one module per concern — [`list`] (GET /{key}), [`detail`]
-//! (GET /{key}/{id}), [`forms`] (create/edit form GETs), [`mutations`]
+//! Layout: one module per concern — [`list`] (GET /resources/{key}), [`detail`]
+//! (GET /resources/{key}/{id}), [`forms`] (create/edit form GETs), [`mutations`]
 //! (create/update/delete POSTs), [`home`] (dashboard + fallback), and
 //! [`helpers`] (shared internals). The extractors live in
 //! [`crate::presentation::extractors`], the middleware in

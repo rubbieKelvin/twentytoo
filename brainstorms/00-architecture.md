@@ -214,11 +214,11 @@ The built instance hands out `into_router()` (nest inside a larger axum app) or 
 
 Per resource, monomorphized sub-routers carry `ResourceState<R>` (shared app state + one concrete resource):
 
-- `GET/POST /{key}` — list view (search, filters, sort, pagination) and create;
-- `GET /{key}/new` — create form;
-- `GET/POST /{key}/{id}` — detail view and update;
-- `GET /{key}/{id}/edit` — edit form;
-- `POST /{key}/{id}/delete` — delete.
+- `GET/POST /resources/{key}` — list view (search, filters, sort, pagination) and create;
+- `GET /resources/{key}/new` — create form;
+- `GET/POST /resources/{key}/{id}` — detail view and update;
+- `GET /resources/{key}/{id}/edit` — edit form;
+- `POST /resources/{key}/{id}/delete` — delete.
 
 Plus `/` (dashboard home) with a fallback, the auth routes, and the users area when configured. Handlers are generic over `Resource`, one implementation for every resource — no per-resource handler boilerplate. Views are shaped in Rust (`ResourceView`, `FieldView`, `PagerView`, …) with field visibility (`visible_to`), editability (`editable_by`), and policy gates applied per actor **before anything reaches a template**. Form posts arrive via a custom multi-value `FormData` extractor (repeated keys → `Vec<String>`), are validated into entity JSON with field-level errors re-rendered on 422, and round-trip payload → entity → JSON so entity validators run. Server-managed entity fields (e.g. `created_at` set by the DB) need `#[serde(default)]` on typed entities.
 

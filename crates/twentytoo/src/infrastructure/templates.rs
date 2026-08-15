@@ -694,7 +694,7 @@ mod tests {
             (
                 "resource/form.html.j2",
                 serde_json::json!({
-                    "resource": &view, "mode": "create", "form_action": "/widgets",
+                    "resource": &view, "mode": "create", "form_action": "/resources/widgets",
                     "record_id": Option::<String>::None, "values": &values,
                     "errors": &errors, "form_error": Option::<String>::None,
                     "nav": &nav, "active": "widgets", "actor": &actor,
